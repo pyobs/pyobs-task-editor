@@ -1,0 +1,32 @@
+[project]
+name = "pyobs-task-editor"
+version = "0.0.1"
+description = "Task editor for pyobs"
+authors = [{ name = "Tim-Oliver Husser", email = "thusser@uni-goettingen.de" }]
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "nicegui>=3.6.1",
+    "pyobs-core>=1.39",
+    "pyside6>=6.10.2",
+]
+
+[project.scripts]
+pyobs-task-editor = "pyobs_task_editor.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0,<2",
+    "black>=25.1.0,<26",
+    "pre-commit>=4.2.0,<5",
+    "flake8>=7.3.0",
+    "pyside6-stubs>=6.7.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
