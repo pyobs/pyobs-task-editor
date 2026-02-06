@@ -155,19 +155,66 @@ def tasks_page() -> None:
     ).classes("w-full")
     with table.add_slot("body-cell-id"):
         with table.cell("id"):
-            ui.link().props(":href=\"'/tasks/' + props.value\" :innerHTML=props.value")
+            ui.link().props(":href=\"'/tasks/' + props.value + '/show'\" :innerHTML=props.value")
 
 
-@ui.page("/tasks/{task_id}")
-def task_page(task_id: str) -> None:
+def task_nav(task_id: str, active: str) -> None:
+    links = {
+        "show": {"icon": "visibility", "label": "Show"},
+        "edit": {"icon": "edit", "label": "Edit"},
+        "schedule": {"icon": "calendar_month", "label": "Schedule"},
+        "observations": {"icon": "camera", "label": "Observations"},
+    }
+
+    for name, link in links.items():
+        color = "red" if name == active else "black"
+        with ui.link(target=f"/tasks/{task_id}/{name}"):
+            ui.button(link["label"], icon=link["icon"]).props(f"flat color={color}")
+
+
+@ui.page("/tasks/{task_id}/{page}")
+def task_page(task_id: str, page: str) -> None:
     nav()
+    with ui.column().classes("w-full items-center"):
+        task = tasks[task_id]
+        ui.label(f"Task {task.name} (ID: {task.id})").classes("text-h5")
+        with ui.row().classes("gap-16"):
+            with ui.column().classes("w-50 items-stretch"):
+                task_nav(task_id, page)
+            with ui.column().classes("w-100 items-stretch"):
+                if page == "show":
+                    show_task_page(task)
+                elif page == "edit":
+                    edit_task_page(task)
+                elif page == "schedule":
+                    schedule_task_page(task)
+                elif page == "observations":
+                    observations_task_page(task)
 
-    task = tasks[task_id]
-    ui.label(f"Task {task.name} (id: {task.id})")
-
-    build_ui(task)
+        # build_ui(task)
     # ui.input(label="Task name").bind_value(task, "name")
     # ui.input(label="Task ID").bind_value(task, "id")
+
+
+def show_task_page(task: Task) -> None:
+    with ui.row():
+        ui.label("Priority:").classes("text-bold")
+        ui.label(f"{task.priority}")
+    with ui.row():
+        ui.label("Duration:").classes("text-bold")
+        ui.label(f"{task.duration} sec")
+
+
+def edit_task_page(task: Task) -> None:
+    ui.label("Edit Task")
+
+
+def schedule_task_page(task: Task) -> None:
+    ui.label("Schedule Task")
+
+
+def observations_task_page(task: Task) -> None:
+    ui.label("Observations Task")
 
 
 def is_type(obj: Any, type: Any) -> bool:
