@@ -206,7 +206,17 @@ def show_task_page(task: Task) -> None:
 
 
 def edit_task_page(task: Task) -> None:
-    ui.label("Edit Task")
+    with ui.card():
+        ui.label("General").classes("text-bold")
+        ui.input("ID").classes("w-80 mx-auto")
+        ui.input("Name").classes("w-80 mx-auto")
+        ui.number("Priority", format="%d").classes("w-80 mx-auto")
+        ui.number("Duration", format="%d", suffix="sec").classes("w-80 mx-auto")
+    with ui.card():
+        ui.label("Target").classes("text-bold")
+        ui.input("Name").classes("w-80 mx-auto")
+        ui.input("RA").classes("w-80 mx-auto")
+        ui.input("Dec").classes("w-80 mx-auto")
 
 
 def schedule_task_page(task: Task) -> None:
