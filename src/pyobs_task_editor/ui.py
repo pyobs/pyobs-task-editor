@@ -13,6 +13,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
 from pyobs.robotic import Task
+from pyobs.robotic.scheduler.constraints import Constraint
+from pyobs.robotic.scheduler.merits import Merit
 
 TASK_CONFIG = """
 ---
@@ -208,15 +210,40 @@ def show_task_page(task: Task) -> None:
 def edit_task_page(task: Task) -> None:
     with ui.card():
         ui.label("General").classes("text-bold")
-        ui.input("ID").classes("w-80 mx-auto")
-        ui.input("Name").classes("w-80 mx-auto")
-        ui.number("Priority", format="%d").classes("w-80 mx-auto")
-        ui.number("Duration", format="%d", suffix="sec").classes("w-80 mx-auto")
+        ui.input("ID").classes("w-80 mx-auto").props("readonly").bind_value(task, "id")
+        ui.input("Name").classes("w-80 mx-auto").props("readonly").bind_value(task, "name")
+        ui.number("Priority", format="%d").classes("w-80 mx-auto").bind_value(task, "priority")
+        ui.number("Duration", format="%d", suffix="sec").classes("w-80 mx-auto").bind_value(task, "duration")
     with ui.card():
-        ui.label("Target").classes("text-bold")
-        ui.input("Name").classes("w-80 mx-auto")
-        ui.input("RA").classes("w-80 mx-auto")
-        ui.input("Dec").classes("w-80 mx-auto")
+        has_target = (
+            ui.checkbox("Target")
+            .classes("text-bold")
+            .bind_enabled_from(task, "target", backward=lambda t: t is not None)
+        )
+        with ui.element().bind_visibility_from(has_target, "value"):
+            ui.input("Name").classes("w-80 mx-auto").bind_value(task.target, "name")
+            ui.input("RA").classes("w-80 mx-auto").bind_value(task.target, "ra")
+            ui.input("Dec").classes("w-80 mx-auto").bind_value(task.target, "dec")
+    with ui.card():
+        ui.label("Constraints").classes("text-bold")
+        constraints = Constraint.list()
+        for c in task.constraints:
+            with ui.card():
+                ui.input("Name").classes("w-80 mx-auto").props("readonly").bind_value_from(c, "name")
+                for name, field in c.model_fields.items():
+                    ui.number(name).classes("w-80 mx-auto").bind_value(c, name)
+        ui.select(constraints, value=c.name).classes("w-80 mx-auto")
+
+    with ui.card():
+        ui.label("Merits").classes("text-bold")
+        merits = Merit.list()
+        print(merits)
+        for m in task.merits:
+            with ui.card():
+                ui.input("Name").classes("w-80 mx-auto").props("readonly").bind_value_from(m, "name")
+                for name, field in m.model_fields.items():
+                    ui.number(name).classes("w-80 mx-auto").bind_value(m, name)
+        ui.select(merits, value=m.name).classes("w-80 mx-auto")
 
 
 def schedule_task_page(task: Task) -> None:
