@@ -1,22 +1,7 @@
-from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6 import QtWidgets, QtCore
 import qtawesome as qa
 from pyobs.robotic import Task
-
-
-class DetailListWidgetItem(QtWidgets.QWidget):
-    def __init__(self) -> None:
-        super().__init__()
-
-        layout = QtWidgets.QFormLayout()
-        self.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding)
-        self.setLayout(layout)
-        self.setMinimumHeight(100)
-
-        self.type = QtWidgets.QComboBox()
-        layout.addRow("Type", self.type)
-
-        self.test = QtWidgets.QLineEdit()
-        layout.addRow("Test", self.test)
+import inspect
 
 
 class ListWidget(QtWidgets.QGroupBox):
@@ -27,14 +12,22 @@ class ListWidget(QtWidgets.QGroupBox):
 
         self.setTitle(title)
 
-        layout = QtWidgets.QVBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
         self.setLayout(layout)
 
+        splitter = QtWidgets.QSplitter()
+        layout.addWidget(splitter)
+
+        list_frame = QtWidgets.QWidget()
+        splitter.addWidget(list_frame)
+        list_layout = QtWidgets.QVBoxLayout()
+        list_frame.setLayout(list_layout)
+
         self.list_widget = QtWidgets.QListWidget()
-        layout.addWidget(self.list_widget)
+        list_layout.addWidget(self.list_widget)
 
         buttons_layout = QtWidgets.QHBoxLayout()
-        layout.addLayout(buttons_layout)
+        list_layout.addLayout(buttons_layout)
 
         buttons_layout.addSpacerItem(
             QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
@@ -50,13 +43,19 @@ class ListWidget(QtWidgets.QGroupBox):
         self.button_remove.clicked.connect(self.remove_item)
         buttons_layout.addWidget(self.button_remove)
 
+        edit_group = QtWidgets.QGroupBox()
+        splitter.addWidget(edit_group)
+
     @QtCore.Slot()
     def add_item(self):
+        import pyobs.robotic.scheduler.constraints
+
+        items = [name for name, obj in inspect.getmembers(pyobs.robotic.scheduler.constraints) if inspect.isclass(obj)]
+        print(items)
+
         item = QtWidgets.QListWidgetItem()
+        item.setText("Add item")
         self.list_widget.addItem(item)
-        widget = DetailListWidgetItem()
-        item.setSizeHint(widget.minimumSizeHint())
-        self.list_widget.setItemWidget(item, widget)
 
     @QtCore.Slot()
     def remove_item(self):
