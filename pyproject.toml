@@ -6,9 +6,11 @@ authors = [{ name = "Tim-Oliver Husser", email = "thusser@uni-goettingen.de" }]
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
-    "nicegui>=3.6.1",
+    "pyobs>=0.1",
     "pyobs-core>=1.39",
     "pyside6>=6.10.2",
+    "qtawesome>=1.4.2",
+    "requests>=2.32.5",
 ]
 
 [project.scripts]
