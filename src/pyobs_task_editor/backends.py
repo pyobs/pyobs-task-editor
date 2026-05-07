@@ -4,7 +4,7 @@ from pyobs.robotic import Task
 
 
 class HttpBackend:
-    def __init__(self, url: str = "http://localhost:8000/"):
+    def __init__(self, url: str = "http://localhost:8008/"):
         self._url = url
 
     def get_tasks(self):
