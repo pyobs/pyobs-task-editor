@@ -1,3 +1,4 @@
+from astropy.time import Time
 from typing import cast
 
 from PySide6 import QtWidgets, QtCore
@@ -8,11 +9,15 @@ import inspect
 from pyobs_task_editor.comboboxdialog import ComboBoxDialog
 
 
-class ListWidget(QtWidgets.QGroupBox):
+class ConstraintMeritListWidget(QtWidgets.QGroupBox):
     item_selected = QtCore.Signal(Task)
 
-    def __init__(self, title: str) -> None:
+    def __init__(self, title: str, module, name) -> None:
         super().__init__()
+
+        self._task: Task | None = None
+        self._module = module
+        self._name = name
 
         self.setTitle(title)
 
@@ -54,22 +59,42 @@ class ListWidget(QtWidgets.QGroupBox):
 
         splitter.setSizes([splitter.width() // 2, splitter.width() // 2])
 
+    @QtCore.Slot(Task)
+    def set_task(self, task: Task) -> None:
+        self._task = task
+        self.update_list()
+
+    @QtCore.Slot(str)
+    def update_list(self, selected: str = ""):
+        if self._task is None:
+            return
+        self.list_widget.clear()
+        row = 0
+        for i, obj in enumerate(getattr(self._task, self._name)):
+            item = QtWidgets.QListWidgetItem()
+            item.setText(obj.__class__.__name__)
+            item.setData(QtCore.Qt.UserRole, obj)
+            self.list_widget.addItem(item)
+            if obj.__class__.__name__ == selected:
+                row = i
+        self.list_widget.setCurrentRow(row)
+
     @QtCore.Slot()
     def add_item(self):
-        import pyobs.robotic.scheduler.constraints
+        if self._task is None:
+            return
 
         existing = [self.list_widget.item(row).text() for row in range(self.list_widget.count())]
         options = [
-            name
-            for name, obj in inspect.getmembers(pyobs.robotic.scheduler.constraints)
-            if inspect.isclass(obj) and name not in existing
+            name for name, obj in inspect.getmembers(self._module) if inspect.isclass(obj) and name not in existing
         ]
+        options.remove(self._name.capitalize()[:-1])
 
         dialog = ComboBoxDialog("Select type", options)
         if dialog.exec_() == QtWidgets.QDialog.DialogCode.Accepted:
-            item = QtWidgets.QListWidgetItem()
-            item.setText(dialog.option)
-            self.list_widget.addItem(item)
+            obj = getattr(self._module, dialog.option)()
+            getattr(self._task, self._name).append(obj)
+            self.update_list(dialog.option)
 
     @QtCore.Slot()
     def remove_item(self):
@@ -77,21 +102,32 @@ class ListWidget(QtWidgets.QGroupBox):
 
     @QtCore.Slot(QtWidgets.QListWidgetItem)
     def _item_selected(self, item):
-        import pyobs.robotic.scheduler.constraints
-
-        print(item.text())
-        klass = getattr(pyobs.robotic.scheduler.constraints, item.text())
-        print(klass)
-        print(klass.model_fields)
-
         layout = cast(QtWidgets.QFormLayout, self.edit_group.layout())
         for i in reversed(range(layout.count())):
             layout.itemAt(i).widget().setParent(None)
 
-        for name, info in klass.model_fields.items():
-            if info.annotation is float:
-                widget = QtWidgets.QDoubleSpinBox()
+        if item is None:
+            return
+
+        obj = item.data(QtCore.Qt.UserRole)
+        for name, info in obj.model_fields.items():
+            if info.annotation in [float, int]:
+                widget = QtWidgets.QDoubleSpinBox() if info.annotation is float else QtWidgets.QSpinBox()
+                for meta in info.metadata:
+                    if hasattr(meta, "ge"):
+                        widget.setMinimum(meta.ge)
+                    if hasattr(meta, "le"):
+                        widget.setMaximum(meta.le)
+                widget.setValue(getattr(obj, name))
+                widget.valueChanged.connect(lambda v: setattr(obj, name, v))
+            elif info.annotation == Time:
+                widget = QtWidgets.QDateTimeEdit()
+                widget.setDisplayFormat("yyyy/MM/dd HH:mm:ss")
+                widget.setCalendarPopup(True)
+                widget.setDateTime(getattr(obj, name).to_datetime())
+                widget.dateTimeChanged.connect(lambda v: setattr(obj, name, Time(v)))
             else:
                 widget = QtWidgets.QLineEdit()
+                widget.setText(getattr(obj, name))
+                widget.textChanged.connect(lambda v: setattr(obj, name, v))
             layout.addRow(name, widget)
-            print(info.annotation)

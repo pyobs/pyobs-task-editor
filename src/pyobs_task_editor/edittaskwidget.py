@@ -1,6 +1,8 @@
 from PySide6 import QtWidgets, QtCore
 from pyobs.robotic import Task
-from pyobs_task_editor.listwidget import ListWidget
+from pyobs_task_editor.constraintmeritlistwidget import ConstraintMeritListWidget
+import pyobs.robotic.scheduler.constraints
+import pyobs.robotic.scheduler.merits
 
 
 class EditTaskWidget(QtWidgets.QWidget):
@@ -26,10 +28,10 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.priority = QtWidgets.QDoubleSpinBox()
         general_layout.addRow("Priority", self.priority)
 
-        self.constraints = ListWidget("Constraints")
+        self.constraints = ConstraintMeritListWidget("Constraints", pyobs.robotic.scheduler.constraints, "constraints")
         layout.addWidget(self.constraints)
 
-        self.merits = ListWidget("Merits")
+        self.merits = ConstraintMeritListWidget("Merits", pyobs.robotic.scheduler.merits, "merits")
         layout.addWidget(self.merits)
 
     @QtCore.Slot(list)
@@ -41,3 +43,6 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.project.setText(task.project)
         self.duration.setValue(task.duration)
         self.priority.setValue(task.priority)
+
+        self.constraints.set_task(task)
+        self.merits.set_task(task)
