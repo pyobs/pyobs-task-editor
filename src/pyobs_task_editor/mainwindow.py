@@ -48,11 +48,22 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.Slot()
     def _new_task(self):
-        self.task_list.add_task(Task(id="newtask", name="New task"))
+        code, ok = QtWidgets.QInputDialog.getText(self, "New Task", "ID of new Task")
+        if ok:
+            self.task_list.add_task(Task(id=code, name=code))
 
     @QtCore.Slot()
     def _save_task(self):
-        pass
+        task = self.task_widget.get_task()
+        if task is None:
+            return
+
+        all_tasks = self.backend.get_tasks()
+        existing_task = any([t.id == task.id for t in all_tasks])
+        if existing_task:
+            self.backend.update_task(task)
+        else:
+            self.backend.add_task(task)
 
     @QtCore.Slot()
     def _sync_tasks(self):

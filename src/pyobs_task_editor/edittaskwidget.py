@@ -18,14 +18,19 @@ class EditTaskWidget(QtWidgets.QWidget):
         layout.addWidget(general)
         general_layout = QtWidgets.QFormLayout(general)
         self.task_id = QtWidgets.QLineEdit()
+        self.task_id.setReadOnly(True)
         general_layout.addRow("ID", self.task_id)
         self.task_name = QtWidgets.QLineEdit()
+        self.task_name.textChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Name", self.task_name)
         self.project = QtWidgets.QLineEdit()
+        self.project.textChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Project", self.project)
         self.duration = QtWidgets.QSpinBox()
+        self.duration.valueChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Duration", self.duration)
         self.priority = QtWidgets.QDoubleSpinBox()
+        self.priority.valueChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Priority", self.priority)
 
         self.constraints = ConstraintMeritListWidget("Constraints", pyobs.robotic.scheduler.constraints, "constraints")
@@ -46,3 +51,12 @@ class EditTaskWidget(QtWidgets.QWidget):
 
         self.constraints.set_task(task)
         self.merits.set_task(task)
+
+    @QtCore.Slot()
+    def _update_task_from_gui(self):
+        if self._task is None:
+            return
+        self._task.name = self.task_name.text()
+        self._task.project = self.project.text()
+        self._task.duration = self.duration.value()
+        self._task.priority = self.priority.value()

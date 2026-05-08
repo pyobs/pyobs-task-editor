@@ -16,3 +16,6 @@ class TaskWidget(QtWidgets.QTabWidget):
     def set_task(self, task: Task) -> None:
         self._task = task
         self.tab_task.set_task(self._task)
+
+    def get_task(self) -> Task | None:
+        return self._task
