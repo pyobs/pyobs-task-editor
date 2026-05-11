@@ -12,6 +12,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.backend = HttpBackend()
+
         self.resize(800, 600)
         self.setWindowTitle("pyobs task editor")
 
@@ -41,14 +43,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.task_list = TaskListWidget()
         splitter.addWidget(self.task_list)
 
-        self.task_widget = TaskWidget()
+        self.task_widget = TaskWidget(self.backend)
         splitter.addWidget(self.task_widget)
 
         splitter.setSizes([1, 3])
 
         self.task_list.task_selected.connect(self.task_widget.set_task)
 
-        self.backend = HttpBackend()
         self._sync_tasks()
 
     @QtCore.Slot()

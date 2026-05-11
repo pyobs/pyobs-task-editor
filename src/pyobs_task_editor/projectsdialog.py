@@ -25,6 +25,8 @@ class ProjectsDialog(QtWidgets.QDialog):
         self.list_widget = ListWithButtonsWidget()
         self.list_widget.addItems(projects)
         self.list_widget.item_selected.connect(self._project_selected)
+        self.list_widget.add_clicked.connect(self._add_project)
+        self.list_widget.remove_clicked.connect(self._remove_project)
         hlayout.addWidget(self.list_widget)
 
         self.group_project = QtWidgets.QGroupBox()
@@ -56,6 +58,29 @@ class ProjectsDialog(QtWidgets.QDialog):
             return
         self._current_project.name = str(self.project_name.text())
         self._current_project.priority = self.priority.value()
+
+    @QtCore.Slot()
+    def _add_project(self) -> None:
+        code, ok = QtWidgets.QInputDialog.getText(self, "New Task", "ID of new Task")
+        if ok:
+            self._projects.append(Project(code=code, name=str(code)))
+            self.list_widget.addItem(code)
+
+    @QtCore.Slot()
+    def _remove_project(self) -> None:
+        if self._current_project is None:
+            return
+        tasks = self._backend.get_tasks(self._current_project)
+        if len(tasks) > 0:
+            QtWidgets.QMessageBox.warning(self, "Warning", "Can not delete project, since it contains tasks.")
+            return
+        if (
+            QtWidgets.QMessageBox.question(
+                self, "Delete project", f"Really delete project {self._current_project.code}?"
+            )
+            == QtWidgets.QMessageBox.accepted
+        ):
+            pass
 
     @QtCore.Slot()
     def _project_selected(self, code: str):

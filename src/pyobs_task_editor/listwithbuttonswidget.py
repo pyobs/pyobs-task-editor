@@ -29,10 +29,10 @@ class ListWithButtonsWidget(QtWidgets.QWidget):
         self.button_add.clicked.connect(lambda: self.add_clicked.emit())
         buttons_layout.addWidget(self.button_add)
 
-        self.button_remove = QtWidgets.QToolButton()
-        self.button_remove.setIcon(qa.icon("fa5s.minus"))
-        self.button_remove.clicked.connect(lambda: self.remove_clicked.emit())
-        buttons_layout.addWidget(self.button_remove)
+        # self.button_remove = QtWidgets.QToolButton()
+        # self.button_remove.setIcon(qa.icon("fa5s.minus"))
+        # self.button_remove.clicked.connect(lambda: self.remove_clicked.emit())
+        # buttons_layout.addWidget(self.button_remove)
 
     def __getattr__(self, item):
         return self.list_widget.__getattribute__(item)

@@ -24,7 +24,7 @@ class Backend(metaclass=abc.ABCMeta):
     def update_project(self, project: Project): ...
 
     @abc.abstractmethod
-    def get_tasks(self): ...
+    def get_tasks(self, project: Project | None = None): ...
 
     @abc.abstractmethod
     def add_task(self, task: Task): ...
@@ -52,8 +52,11 @@ class HttpBackend(Backend):
             headers=self._headers,
         )
 
-    def get_tasks(self):
-        req = requests.get(urljoin(self._url, "/api/tasks/"), headers=self._headers)
+    def get_tasks(self, project: Project | None = None):
+        if project is None:
+            req = requests.get(urljoin(self._url, "/api/tasks/"), headers=self._headers)
+        else:
+            req = requests.get(urljoin(self._url, f"/api/projects/{project.id}/tasks/"), headers=self._headers)
         return [Task.model_validate(task) for task in req.json()]
 
     def add_task(self, task: Task):

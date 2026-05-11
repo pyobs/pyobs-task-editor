@@ -1,18 +1,21 @@
 from PySide6 import QtWidgets, QtCore
 from pyobs.robotic import Task
+from pyobs_task_editor.backends import Backend
 from pyobs_task_editor.constraintmeritlistwidget import ConstraintMeritListWidget
 import pyobs.robotic.scheduler.constraints
 import pyobs.robotic.scheduler.merits
 
 
 class EditTaskWidget(QtWidgets.QWidget):
-    def __init__(self):
+    def __init__(self, backend: Backend):
         super().__init__()
 
         self._task: Task | None = None
 
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
+
+        projects = [p.code for p in backend.get_projects()]
 
         general = QtWidgets.QGroupBox("General")
         layout.addWidget(general)
@@ -23,8 +26,10 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.task_name = QtWidgets.QLineEdit()
         self.task_name.textChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Name", self.task_name)
-        self.project = QtWidgets.QLineEdit()
-        self.project.textChanged.connect(self._update_task_from_gui)
+        self.project = QtWidgets.QComboBox()
+        self.project.setEditable(False)
+        self.project.addItems(projects)
+        self.project.currentTextChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Project", self.project)
         self.duration = QtWidgets.QSpinBox()
         self.duration.valueChanged.connect(self._update_task_from_gui)
@@ -45,7 +50,7 @@ class EditTaskWidget(QtWidgets.QWidget):
 
         self.task_id.setText(task.id)
         self.task_name.setText(task.name)
-        self.project.setText(task.project)
+        self.project.setCurrentText(task.project)
         self.duration.setValue(task.duration)
         self.priority.setValue(task.priority)
 
@@ -57,6 +62,6 @@ class EditTaskWidget(QtWidgets.QWidget):
         if self._task is None:
             return
         self._task.name = self.task_name.text()
-        self._task.project = self.project.text()
+        self._task.project = self.project.currentText()
         self._task.duration = self.duration.value()
         self._task.priority = self.priority.value()
