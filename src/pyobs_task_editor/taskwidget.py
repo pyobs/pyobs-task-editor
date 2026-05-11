@@ -10,8 +10,12 @@ class TaskWidget(QtWidgets.QTabWidget):
 
         self._task: Task | None = None
 
+        scroll_area_task = QtWidgets.QScrollArea()
+        scroll_area_task.horizontalScrollBar().setVisible(False)
         self.tab_task = EditTaskWidget(backend)
-        self.addTab(self.tab_task, "Task")
+        scroll_area_task.setWidgetResizable(True)
+        scroll_area_task.setWidget(self.tab_task)
+        self.addTab(scroll_area_task, "Task")
 
     @QtCore.Slot(list)
     def set_task(self, task: Task) -> None:
