@@ -3,6 +3,7 @@ import qtawesome as qa
 
 from pyobs.robotic import Task
 from pyobs_task_editor.backends import HttpBackend
+from pyobs_task_editor.projectsdialog import ProjectsDialog
 from pyobs_task_editor.tasklistwidget import TaskListWidget
 from pyobs_task_editor.taskwidget import TaskWidget
 
@@ -29,6 +30,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.action_sync = QtGui.QAction(qa.icon("mdi6.sync"), "Sync", self)
         toolbar.addAction(self.action_sync)
         self.action_sync.triggered.connect(self._sync_tasks)
+        toolbar.addSeparator()
+        self.action_projects = QtGui.QAction(qa.icon("mdi6.format-list-group"), "New", self)
+        self.action_projects.triggered.connect(self._edit_projects)
+        toolbar.addAction(self.action_projects)
 
         splitter = QtWidgets.QSplitter()
         self.setCentralWidget(splitter)
@@ -69,3 +74,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def _sync_tasks(self):
         tasks = self.backend.get_tasks()
         self.task_list.set_tasks(tasks)
+
+    @QtCore.Slot()
+    def _edit_projects(self):
+        dialog = ProjectsDialog(self.backend)
+        dialog.exec_()
