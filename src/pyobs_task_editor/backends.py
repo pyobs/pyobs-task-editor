@@ -17,6 +17,7 @@ class Project(pydantic.BaseModel):
     code: str = pydantic.Field(default="")
     name: str = pydantic.Field(default="")
     priority: float = pydantic.Field(default=0)
+    users: list[str] = pydantic.Field(default=[])
 
 
 class Backend(metaclass=abc.ABCMeta):

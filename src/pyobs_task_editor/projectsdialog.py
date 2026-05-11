@@ -1,6 +1,6 @@
 from PySide6 import QtWidgets, QtCore
 
-from pyobs_task_editor.backends import Backend, Project
+from pyobs_task_editor.backends import Backend, Project, User
 from pyobs_task_editor.listwithbuttonswidget import ListWithButtonsWidget
 
 
@@ -43,6 +43,9 @@ class ProjectsDialog(QtWidgets.QDialog):
         self.priority = QtWidgets.QDoubleSpinBox()
         self.priority.valueChanged.connect(self._update_project_from_gui)
         project_layout.addRow("Priority", self.priority)
+        self.users = QtWidgets.QListWidget()
+        self.users.itemChanged.connect(self._update_project_from_gui)
+        project_layout.addRow("Users", self.users)
 
         buttons = QtWidgets.QDialogButtonBox()
         buttons.setStandardButtons(
@@ -58,6 +61,11 @@ class ProjectsDialog(QtWidgets.QDialog):
             return
         self._current_project.name = str(self.project_name.text())
         self._current_project.priority = self.priority.value()
+        self._current_project.users = [
+            self.users.item(i).text()
+            for i in range(self.users.count())
+            if self.users.item(i).checkState() == QtCore.Qt.CheckState.Checked
+        ]
 
     @QtCore.Slot()
     def _add_project(self) -> None:
@@ -104,6 +112,18 @@ class ProjectsDialog(QtWidgets.QDialog):
             self.project_id.setText(str(self._current_project.code))
             self.project_name.setText(str(self._current_project.name))
             self.priority.setValue(self._current_project.priority)
+            self.users.clear()
+            for user in self._backend.get_users():
+                item = QtWidgets.QListWidgetItem(user.username)
+                item.setData(QtCore.Qt.ItemDataRole.UserRole, user)
+                item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+                item.setCheckState(
+                    QtCore.Qt.CheckState.Checked
+                    if user.username in self._current_project.users
+                    else QtCore.Qt.CheckState.Unchecked
+                )
+                self.users.addItem(item)
+
             self._updating = False
 
     @QtCore.Slot()
