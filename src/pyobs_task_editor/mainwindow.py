@@ -6,6 +6,7 @@ from pyobs_task_editor.backends import HttpBackend
 from pyobs_task_editor.projectsdialog import ProjectsDialog
 from pyobs_task_editor.tasklistwidget import TaskListWidget
 from pyobs_task_editor.taskwidget import TaskWidget
+from pyobs_task_editor.usersdialog import UsersDialog
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -36,6 +37,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.action_projects = QtGui.QAction(qa.icon("mdi6.format-list-group"), "New", self)
         self.action_projects.triggered.connect(self._edit_projects)
         toolbar.addAction(self.action_projects)
+        self.action_users = QtGui.QAction(qa.icon("mdi6.account-group"), "New", self)
+        self.action_users.triggered.connect(self._edit_users)
+        toolbar.addAction(self.action_users)
 
         splitter = QtWidgets.QSplitter()
         self.setCentralWidget(splitter)
@@ -79,4 +83,9 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.Slot()
     def _edit_projects(self):
         dialog = ProjectsDialog(self.backend)
+        dialog.exec_()
+
+    @QtCore.Slot()
+    def _edit_users(self):
+        dialog = UsersDialog(self.backend)
         dialog.exec_()

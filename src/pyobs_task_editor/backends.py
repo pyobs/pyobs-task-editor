@@ -1,9 +1,15 @@
 import abc
-
 import pydantic
 from urllib.parse import urljoin
 import requests
 from pyobs.robotic import Task
+
+
+class User(pydantic.BaseModel):
+    id: int = pydantic.Field(default=None)
+    username: str = pydantic.Field(default="")
+    email: str = pydantic.Field(default="")
+    is_superuser: bool = pydantic.Field(default=False)
 
 
 class Project(pydantic.BaseModel):
@@ -14,6 +20,15 @@ class Project(pydantic.BaseModel):
 
 
 class Backend(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def get_users(self): ...
+
+    @abc.abstractmethod
+    def add_user(self, user: User): ...
+
+    @abc.abstractmethod
+    def update_user(self, user: User): ...
+
     @abc.abstractmethod
     def get_projects(self): ...
 
@@ -38,6 +53,20 @@ class HttpBackend(Backend):
         self._url = url
         self._headers = {"Authorization": "Token 484737b0e9001bdfabb7e96d68c98cd91e4d4d24"}  # local debug token
 
+    def get_users(self):
+        req = requests.get(urljoin(self._url, "/api/users/"), headers=self._headers)
+        return [User.model_validate(user) for user in req.json()]
+
+    def add_user(self, user: User):
+        requests.post(urljoin(self._url, "/api/users/"), json=user.model_dump(mode="json"), headers=self._headers)
+
+    def update_user(self, user: User):
+        req = requests.put(
+            urljoin(self._url, f"/api/users/{user.id}/"),
+            json=user.model_dump(mode="json"),
+            headers=self._headers,
+        )
+
     def get_projects(self):
         req = requests.get(urljoin(self._url, "/api/projects/"), headers=self._headers)
         return [Project.model_validate(project) for project in req.json()]
@@ -60,7 +89,6 @@ class HttpBackend(Backend):
         return [Task.model_validate(task) for task in req.json()]
 
     def add_task(self, task: Task):
-        print(task.model_dump(mode="json"))
         requests.post(urljoin(self._url, "/api/tasks/"), json=task.model_dump(mode="json"), headers=self._headers)
 
     def update_task(self, task: Task):
