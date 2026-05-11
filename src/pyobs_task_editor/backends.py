@@ -14,9 +14,9 @@ class User(pydantic.BaseModel):
 
 class Project(pydantic.BaseModel):
     id: int = pydantic.Field(default=0)
-    code: str = pydantic.Field(default="")
-    name: str = pydantic.Field(default="")
-    priority: float = pydantic.Field(default=0)
+    code: str
+    name: str
+    priority: float
     users: list[str] = pydantic.Field(default=[])
 
 
@@ -93,6 +93,9 @@ class HttpBackend(Backend):
         requests.post(urljoin(self._url, "/api/tasks/"), json=task.model_dump(mode="json"), headers=self._headers)
 
     def update_task(self, task: Task):
+        import pprint
+
+        pprint.pprint(task.model_dump(mode="json"))
         requests.put(
             urljoin(self._url, f"/api/tasks/{task.id}/"), json=task.model_dump(mode="json"), headers=self._headers
         )
