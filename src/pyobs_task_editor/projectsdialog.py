@@ -71,7 +71,7 @@ class ProjectsDialog(QtWidgets.QDialog):
     def _add_project(self) -> None:
         code, ok = QtWidgets.QInputDialog.getText(self, "New Task", "ID of new Task")
         if ok:
-            self._projects.append(Project(code=code, name=str(code)))
+            self._projects.append(Project(code=code, name=str(code), priority=1.0))
             self.list_widget.addItem(code)
 
     @QtCore.Slot()
