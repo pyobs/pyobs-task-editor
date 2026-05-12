@@ -1,9 +1,13 @@
+import io
+
+import yaml
 from PySide6 import QtWidgets, QtCore
 from pyobs.robotic import Task
 from pyobs_task_editor.backends import Backend
 from pyobs_task_editor.constraintmeritlistwidget import ConstraintMeritListWidget
 import pyobs.robotic.scheduler.constraints
 import pyobs.robotic.scheduler.merits
+from pyobs_task_editor.editscriptwidget import EditScriptWidget
 from pyobs_task_editor.edittargetwidget import EditTargetWidget
 
 
@@ -52,6 +56,10 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.target_widget.target_changed.connect(self._update_target)
         layout.addWidget(self.target_widget)
 
+        self.script_widget = EditScriptWidget(backend)
+        self.script_widget.script_changed.connect(self._update_script)
+        layout.addWidget(self.script_widget)
+
     @QtCore.Slot(list)
     def set_task(self, task: Task) -> None:
         self._updating = True
@@ -66,6 +74,11 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.constraints_widget.set_task(task)
         self.merits_widget.set_task(task)
         self.target_widget.set_target(task.target)
+
+        with io.StringIO() as buffer:
+            yaml.safe_dump(task.script.model_dump(mode="json"), buffer)
+            script = buffer.getvalue()
+        self.script_widget.set_script(script)
 
         self._updating = False
 
@@ -83,3 +96,8 @@ class EditTaskWidget(QtWidgets.QWidget):
         if self._task is None or self._updating:
             return
         self._task.target = self.target_widget.target
+
+    @QtCore.Slot()
+    def _update_script(self) -> None:
+        if self._task is None or self._updating:
+            return
