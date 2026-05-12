@@ -1797,6 +1797,7 @@ name = "pyobs-task-editor"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "platformdirs" },
     { name = "pyobs" },
     { name = "pyobs-core" },
     { name = "pyside6" },
@@ -1815,6 +1816,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "platformdirs", specifier = ">=4.5.1" },
     { name = "pyobs", specifier = ">=0.1" },
     { name = "pyobs-core", specifier = ">=1.39" },
     { name = "pyside6", specifier = ">=6.10.2" },
