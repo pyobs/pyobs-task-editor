@@ -44,22 +44,6 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.priority_widget.valueChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Priority", self.priority_widget)
 
-        self.constraints_widget = ConstraintMeritListWidget(
-            "Constraints", pyobs.robotic.scheduler.constraints, "constraints"
-        )
-        layout.addWidget(self.constraints_widget)
-
-        self.merits_widget = ConstraintMeritListWidget("Merits", pyobs.robotic.scheduler.merits, "merits")
-        layout.addWidget(self.merits_widget)
-
-        self.target_widget = EditTargetWidget(backend)
-        self.target_widget.target_changed.connect(self._update_target)
-        layout.addWidget(self.target_widget)
-
-        self.script_widget = EditScriptWidget(backend)
-        self.script_widget.script_changed.connect(self._update_script)
-        layout.addWidget(self.script_widget)
-
     @QtCore.Slot(list)
     def set_task(self, task: Task) -> None:
         self._updating = True
@@ -71,15 +55,6 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.duration_widget.setValue(task.duration)
         self.priority_widget.setValue(task.priority)
 
-        self.constraints_widget.set_task(task)
-        self.merits_widget.set_task(task)
-        self.target_widget.set_target(task.target)
-
-        with io.StringIO() as buffer:
-            yaml.safe_dump(task.script.model_dump(mode="json"), buffer)
-            script = buffer.getvalue()
-        self.script_widget.set_script(script)
-
         self._updating = False
 
     @QtCore.Slot()
@@ -90,14 +65,3 @@ class EditTaskWidget(QtWidgets.QWidget):
         self._task.project = self.project_widget.currentText()
         self._task.duration = self.duration_widget.value()
         self._task.priority = self.priority_widget.value()
-
-    @QtCore.Slot()
-    def _update_target(self) -> None:
-        if self._task is None or self._updating:
-            return
-        self._task.target = self.target_widget.target
-
-    @QtCore.Slot()
-    def _update_script(self) -> None:
-        if self._task is None or self._updating:
-            return

@@ -1,19 +1,27 @@
+import io
+
+import yaml
 from PySide6 import QtWidgets, QtCore, QtGui
 
+from pyobs.robotic import Task
 from pyobs_task_editor.backends import Backend
 
 
-class EditScriptWidget(QtWidgets.QGroupBox):
+class EditScriptWidget(QtWidgets.QWidget):
     script_changed = QtCore.Signal(str)
 
     def __init__(self, backend: Backend):
         super().__init__()
 
+        self._task: Task | None = None
         self._updating = False
 
-        self.setTitle("Script")
-        layout = QtWidgets.QVBoxLayout()
-        self.setLayout(layout)
+        self.setLayout(QtWidgets.QVBoxLayout())
+        group = QtWidgets.QGroupBox("Script")
+        self.layout().addWidget(group)
+
+        layout = QtWidgets.QFormLayout()
+        group.setLayout(layout)
 
         self.yaml_widget = QtWidgets.QPlainTextEdit()
         self.yaml_widget.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
@@ -25,16 +33,20 @@ class EditScriptWidget(QtWidgets.QGroupBox):
         self.yaml_widget.textChanged.connect(self._text_changed)
         layout.addWidget(self.yaml_widget)
 
-    @QtCore.Slot(str)
-    def set_script(self, script: str | None) -> None:
+    @QtCore.Slot(list)
+    def set_task(self, task: Task) -> None:
         self._updating = True
-        if script is None:
+        self._task = task
+        if task is None or task.script is None:
             self.yaml_widget.clear()
         else:
+            with io.StringIO() as buffer:
+                yaml.safe_dump(task.script.model_dump(mode="json"), buffer)
+                script = buffer.getvalue()
             self.yaml_widget.setPlainText(script)
         self._updating = False
 
-    @QtCore.Slot(str)
-    def _text_changed(self, script: str) -> None:
+    @QtCore.Slot()
+    def _text_changed(self) -> None:
         if not self._updating:
             self.script_changed.emit(self.yaml_widget.toPlainText())

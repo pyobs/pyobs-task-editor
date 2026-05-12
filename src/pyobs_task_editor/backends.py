@@ -93,9 +93,6 @@ class HttpBackend(Backend):
         requests.post(urljoin(self._url, "/api/tasks/"), json=task.model_dump(mode="json"), headers=self._headers)
 
     def update_task(self, task: Task):
-        import pprint
-
-        pprint.pprint(task.model_dump(mode="json"))
         requests.put(
             urljoin(self._url, f"/api/tasks/{task.id}/"), json=task.model_dump(mode="json"), headers=self._headers
         )
