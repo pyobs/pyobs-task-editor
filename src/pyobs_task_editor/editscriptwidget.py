@@ -48,4 +48,6 @@ class EditScriptWidget(QtWidgets.QWidget):
     @QtCore.Slot()
     def _text_changed(self) -> None:
         if not self._updating:
+            with io.StringIO(self.yaml_widget.toPlainText()) as buffer:
+                self._task.script = yaml.safe_load(buffer)
             self.script_changed.emit(self.yaml_widget.toPlainText())
