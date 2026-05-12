@@ -3,6 +3,7 @@ import yaml
 from PySide6 import QtWidgets, QtCore, QtGui
 import qtawesome as qa
 from platformdirs import PlatformDirs
+from pydantic import Field
 
 from pyobs.robotic import Task
 from pyobs_task_editor.backends import HttpBackend
@@ -20,19 +21,17 @@ class Connection(pydantic.BaseModel):
 
 
 class Config(pydantic.BaseModel):
-    connections: list[Connection]
+    connections: list[Connection] = Field(default_factory=list)
 
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        dirs = PlatformDirs("pyobs-task-editor", "pyobs")
-        with open(dirs.user_config_path, "r") as f:
-            config = Config.model_validate(yaml.safe_load(f))
-            print(config)
+        self.config = Config()
+        self._read_config()
 
-        self.backend = HttpBackend()
+        # self.backend = HttpBackend()
 
         self.resize(800, 600)
         self.setWindowTitle("pyobs task editor")
@@ -41,7 +40,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addToolBar(toolbar)
 
         self.connection_menu = QtWidgets.QMenu()
-        for conn in config.connections:
+        for conn in self.config.connections:
             action = QtGui.QAction(conn.name, self)
             self.connection_menu.addAction(action)
 
@@ -50,7 +49,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.connection_widget.setToolTip("Connections")
         self.connection_widget.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         self.connection_widget.setMenu(self.connection_menu)
-        # self.connection_widget.setArrowType(QtCore.Qt.ArrowType.DownArrow)
         self.connection_widget.clicked.connect(self._edit_connections)
         toolbar.addWidget(self.connection_widget)
 
@@ -78,14 +76,28 @@ class MainWindow(QtWidgets.QMainWindow):
         self.task_list = TaskListWidget()
         splitter.addWidget(self.task_list)
 
-        self.task_widget = TaskWidget(self.backend)
-        splitter.addWidget(self.task_widget)
+        # self.task_widget = TaskWidget(self.backend)
+        # splitter.addWidget(self.task_widget)
 
         splitter.setSizes([1, 3])
 
-        self.task_list.task_selected.connect(self.task_widget.set_task)
+        # self.task_list.task_selected.connect(self.task_widget.set_task)
 
-        self._sync_tasks()
+        # self._sync_tasks()
+
+    def _read_config(self):
+        dirs = PlatformDirs("pyobs-task-editor", "pyobs")
+        try:
+            with open(dirs.user_config_path, "r") as f:
+                self.config = Config.model_validate(yaml.safe_load(f))
+        except FileNotFoundError:
+            self.config = Config()
+
+    def _write_config(self):
+        dirs = PlatformDirs("pyobs-task-editor", "pyobs")
+        with open(dirs.user_config_path, "w") as f:
+            print(self.config.model_dump())
+            yaml.safe_dump(self.config.model_dump(), f)
 
     @QtCore.Slot()
     def _new_task(self):
@@ -123,5 +135,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.Slot()
     def _edit_connections(self):
-        dialog = ConnectionsDialog()
-        dialog.exec_()
+        dialog = ConnectionsDialog(self.config.model_copy())
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            self.config = dialog.config
+            self._write_config()
