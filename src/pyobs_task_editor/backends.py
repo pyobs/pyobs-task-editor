@@ -50,9 +50,9 @@ class Backend(metaclass=abc.ABCMeta):
 
 
 class HttpBackend(Backend):
-    def __init__(self, url: str = "http://localhost:8008/"):
+    def __init__(self, url: str, token: str) -> None:
         self._url = url
-        self._headers = {"Authorization": "Token d4e46d724a6e33da2c8d64d8d5230988bb0b9682"}  # local debug token
+        self._headers = {"Authorization": f"Token {token}"}  # local debug token
 
     def get_users(self):
         req = requests.get(urljoin(self._url, "/api/users/"), headers=self._headers)

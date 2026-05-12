@@ -1,17 +1,14 @@
 from astropy.coordinates import SkyCoord
-from typing import cast
 from PySide6 import QtWidgets, QtCore
 
 from pyobs.robotic import Task
 from pyobs.robotic.scheduler.targets import Target, SiderealTarget
 
-from pyobs_task_editor.backends import Backend
-
 
 class EditTargetWidget(QtWidgets.QWidget):
     target_changed = QtCore.Signal(Target)
 
-    def __init__(self, backend: Backend):
+    def __init__(self):
         super().__init__()
 
         self._task: Task | None = None

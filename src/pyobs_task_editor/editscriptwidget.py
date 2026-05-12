@@ -10,7 +10,7 @@ from pyobs_task_editor.backends import Backend
 class EditScriptWidget(QtWidgets.QWidget):
     script_changed = QtCore.Signal(str)
 
-    def __init__(self, backend: Backend):
+    def __init__(self):
         super().__init__()
 
         self._task: Task | None = None

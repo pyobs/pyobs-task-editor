@@ -13,17 +13,20 @@ class TaskWidget(QtWidgets.QTabWidget):
 
         self._task: Task | None = None
 
-        self.tab_task = EditTaskWidget(backend)
+        self.tab_task = EditTaskWidget()
         self.addTab(self.tab_task, "Task")
 
-        self.tab_scheduler = EditSchedulerWidget(backend)
+        self.tab_scheduler = EditSchedulerWidget()
         self.addTab(self.tab_scheduler, "Schedule")
 
-        self.tab_target = EditTargetWidget(backend)
+        self.tab_target = EditTargetWidget()
         self.addTab(self.tab_target, "Target")
 
-        self.tab_script = EditScriptWidget(backend)
+        self.tab_script = EditScriptWidget()
         self.addTab(self.tab_script, "Script")
+
+    def set_backend(self, backend: Backend):
+        self.tab_task.set_backend(backend)
 
     @QtCore.Slot(list)
     def set_task(self, task: Task) -> None:

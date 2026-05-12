@@ -6,7 +6,7 @@ from platformdirs import PlatformDirs
 from pydantic import Field
 
 from pyobs.robotic import Task
-from pyobs_task_editor.backends import HttpBackend
+from pyobs_task_editor.backends import HttpBackend, Backend
 from pyobs_task_editor.connectionsdialog import ConnectionsDialog
 from pyobs_task_editor.projectsdialog import ProjectsDialog
 from pyobs_task_editor.tasklistwidget import TaskListWidget
@@ -30,8 +30,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.config = Config()
         self._read_config()
-
-        # self.backend = HttpBackend()
+        self.backend: Backend | None = None
 
         self.resize(800, 600)
         self.setWindowTitle("pyobs task editor")
@@ -42,6 +41,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.connection_menu = QtWidgets.QMenu()
         for conn in self.config.connections:
             action = QtGui.QAction(conn.name, self)
+            action.triggered.connect(lambda: self._connect(conn))
             self.connection_menu.addAction(action)
 
         self.connection_widget = QtWidgets.QToolButton()
@@ -76,14 +76,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.task_list = TaskListWidget()
         splitter.addWidget(self.task_list)
 
-        # self.task_widget = TaskWidget(self.backend)
-        # splitter.addWidget(self.task_widget)
+        self.task_widget = TaskWidget(self.backend)
+        splitter.addWidget(self.task_widget)
 
         splitter.setSizes([1, 3])
 
-        # self.task_list.task_selected.connect(self.task_widget.set_task)
-
-        # self._sync_tasks()
+        self.task_list.task_selected.connect(self.task_widget.set_task)
 
     def _read_config(self):
         dirs = PlatformDirs("pyobs-task-editor", "pyobs")
@@ -121,6 +119,7 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.Slot()
     def _sync_tasks(self):
         tasks = self.backend.get_tasks()
+        print(tasks)
         self.task_list.set_tasks(tasks)
 
     @QtCore.Slot()
@@ -139,3 +138,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if dialog.exec_() == QtWidgets.QDialog.Accepted:
             self.config = dialog.config
             self._write_config()
+
+    @QtCore.Slot(Connection)
+    def _connect(self, conn):
+        self.backend = HttpBackend(url=conn.url, token=conn.token)
+        self.task_widget.set_backend(self.backend)
+        self._sync_tasks()

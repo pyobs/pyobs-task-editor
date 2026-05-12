@@ -1,13 +1,12 @@
 from PySide6 import QtWidgets, QtCore
 from pyobs.robotic import Task
-from pyobs_task_editor.backends import Backend
 from pyobs_task_editor.constraintmeritlistwidget import ConstraintMeritListWidget
 import pyobs.robotic.scheduler.constraints
 import pyobs.robotic.scheduler.merits
 
 
 class EditSchedulerWidget(QtWidgets.QWidget):
-    def __init__(self, backend: Backend):
+    def __init__(self):
         super().__init__()
 
         self._task: Task | None = None

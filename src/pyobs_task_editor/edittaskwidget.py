@@ -1,27 +1,18 @@
-import io
-
-import yaml
 from PySide6 import QtWidgets, QtCore
 from pyobs.robotic import Task
 from pyobs_task_editor.backends import Backend
-from pyobs_task_editor.constraintmeritlistwidget import ConstraintMeritListWidget
-import pyobs.robotic.scheduler.constraints
-import pyobs.robotic.scheduler.merits
-from pyobs_task_editor.editscriptwidget import EditScriptWidget
-from pyobs_task_editor.edittargetwidget import EditTargetWidget
 
 
 class EditTaskWidget(QtWidgets.QWidget):
-    def __init__(self, backend: Backend):
+    def __init__(self):
         super().__init__()
 
         self._task: Task | None = None
+        self._backend: Backend | None = None
         self._updating = False
 
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
-
-        projects = [p.code for p in backend.get_projects()]
 
         general = QtWidgets.QGroupBox("General")
         layout.addWidget(general)
@@ -34,7 +25,6 @@ class EditTaskWidget(QtWidgets.QWidget):
         general_layout.addRow("Name", self.task_name_widget)
         self.project_widget = QtWidgets.QComboBox()
         self.project_widget.setEditable(False)
-        self.project_widget.addItems(projects)
         self.project_widget.currentTextChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Project", self.project_widget)
         self.duration_widget = QtWidgets.QSpinBox()
@@ -43,6 +33,12 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.priority_widget = QtWidgets.QDoubleSpinBox()
         self.priority_widget.valueChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Priority", self.priority_widget)
+
+    def set_backend(self, backend: Backend):
+        self._backend = backend
+        projects = [p.code for p in backend.get_projects()]
+        self.project_widget.clear()
+        self.project_widget.addItems(projects)
 
     @QtCore.Slot(list)
     def set_task(self, task: Task) -> None:
