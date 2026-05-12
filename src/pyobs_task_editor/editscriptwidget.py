@@ -41,9 +41,8 @@ class EditScriptWidget(QtWidgets.QWidget):
             self.yaml_widget.clear()
         else:
             with io.StringIO() as buffer:
-                yaml.safe_dump(task.script.model_dump(mode="json"), buffer)
-                script = buffer.getvalue()
-            self.yaml_widget.setPlainText(script)
+                yaml.safe_dump(task.script, buffer)
+                self.yaml_widget.setPlainText(buffer.getvalue())
         self._updating = False
 
     @QtCore.Slot()
