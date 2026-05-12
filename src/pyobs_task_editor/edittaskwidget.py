@@ -12,6 +12,7 @@ class EditTaskWidget(QtWidgets.QWidget):
         super().__init__()
 
         self._task: Task | None = None
+        self._updating = False
 
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
@@ -53,6 +54,7 @@ class EditTaskWidget(QtWidgets.QWidget):
 
     @QtCore.Slot(list)
     def set_task(self, task: Task) -> None:
+        self._updating = True
         self._task = task
 
         self.task_id_widget.setText(task.id)
@@ -65,9 +67,11 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.merits_widget.set_task(task)
         self.target_widget.set_target(task.target)
 
+        self._updating = False
+
     @QtCore.Slot()
     def _update_task_from_gui(self):
-        if self._task is None:
+        if self._task is None or self._updating:
             return
         self._task.name = self.task_name_widget.text()
         self._task.project = self.project_widget.currentText()
@@ -76,4 +80,6 @@ class EditTaskWidget(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def _update_target(self) -> None:
+        if self._task is None or self._updating:
+            return
         self._task.target = self.target_widget.target
