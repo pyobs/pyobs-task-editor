@@ -1,17 +1,36 @@
+import pydantic
+import yaml
 from PySide6 import QtWidgets, QtCore, QtGui
 import qtawesome as qa
+from platformdirs import PlatformDirs
 
 from pyobs.robotic import Task
 from pyobs_task_editor.backends import HttpBackend
+from pyobs_task_editor.connectionsdialog import ConnectionsDialog
 from pyobs_task_editor.projectsdialog import ProjectsDialog
 from pyobs_task_editor.tasklistwidget import TaskListWidget
 from pyobs_task_editor.taskwidget import TaskWidget
 from pyobs_task_editor.usersdialog import UsersDialog
 
 
+class Connection(pydantic.BaseModel):
+    name: str
+    url: str
+    token: str
+
+
+class Config(pydantic.BaseModel):
+    connections: list[Connection]
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
+
+        dirs = PlatformDirs("pyobs-task-editor", "pyobs")
+        with open(dirs.user_config_path, "r") as f:
+            config = Config.model_validate(yaml.safe_load(f))
+            print(config)
 
         self.backend = HttpBackend()
 
@@ -21,8 +40,20 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar = QtWidgets.QToolBar("Main ToolBar")
         self.addToolBar(toolbar)
 
-        self.action_connection = QtGui.QAction(qa.icon("mdi6.cast-connected"), "New", self)
-        toolbar.addAction(self.action_connection)
+        self.connection_menu = QtWidgets.QMenu()
+        for conn in config.connections:
+            action = QtGui.QAction(conn.name, self)
+            self.connection_menu.addAction(action)
+
+        self.connection_widget = QtWidgets.QToolButton()
+        self.connection_widget.setIcon(qa.icon("mdi6.cast-connected"))
+        self.connection_widget.setToolTip("Connections")
+        self.connection_widget.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        self.connection_widget.setMenu(self.connection_menu)
+        # self.connection_widget.setArrowType(QtCore.Qt.ArrowType.DownArrow)
+        self.connection_widget.clicked.connect(self._edit_connections)
+        toolbar.addWidget(self.connection_widget)
+
         toolbar.addSeparator()
         self.action_new = QtGui.QAction(qa.icon("mdi6.file-document-plus-outline"), "New", self)
         self.action_new.triggered.connect(self._new_task)
@@ -34,10 +65,10 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addAction(self.action_sync)
         self.action_sync.triggered.connect(self._sync_tasks)
         toolbar.addSeparator()
-        self.action_projects = QtGui.QAction(qa.icon("mdi6.format-list-group"), "New", self)
+        self.action_projects = QtGui.QAction(qa.icon("mdi6.format-list-group"), "Projects", self)
         self.action_projects.triggered.connect(self._edit_projects)
         toolbar.addAction(self.action_projects)
-        self.action_users = QtGui.QAction(qa.icon("mdi6.account-group"), "New", self)
+        self.action_users = QtGui.QAction(qa.icon("mdi6.account-group"), "Users", self)
         self.action_users.triggered.connect(self._edit_users)
         toolbar.addAction(self.action_users)
 
@@ -88,4 +119,9 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.Slot()
     def _edit_users(self):
         dialog = UsersDialog(self.backend)
+        dialog.exec_()
+
+    @QtCore.Slot()
+    def _edit_connections(self):
+        dialog = ConnectionsDialog()
         dialog.exec_()
