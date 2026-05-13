@@ -26,6 +26,37 @@ class Config(pydantic.BaseModel):
     connections: list[Connection] = Field(default_factory=list)
 
 
+class SyncTasksThread(QtCore.QThread):
+    tasks_ready = QtCore.Signal(list)
+
+    def __init__(self, parent, backend: Backend):
+        QtCore.QThread.__init__(self, parent)
+        self.backend = backend
+
+    def run(self) -> None:
+        tasks = self.backend.get_tasks()
+        self.tasks_ready.emit(tasks)
+
+
+class SaveTaskThread(QtCore.QThread):
+    task_saved = QtCore.Signal()
+
+    def __init__(self, parent, backend: Backend, task: Task):
+        QtCore.QThread.__init__(self, parent)
+        self.backend = backend
+        self.task = task
+
+    def run(self) -> None:
+        all_tasks = self.backend.get_tasks()
+        existing_task = any([t.id == self.task.id for t in all_tasks])
+        if existing_task:
+            self.backend.update_task(self.task)
+        else:
+            self.backend.add_task(self.task)
+
+        self.task_saved.emit()
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -82,8 +113,9 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter.addWidget(self.task_widget)
 
         splitter.setSizes([1, 3])
-
         self.task_list.task_selected.connect(self.task_widget.set_task)
+
+        self._update_enabled()
 
     def _read_config(self):
         dirs = PlatformDirs("pyobs-task-editor", "pyobs")
@@ -96,7 +128,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def _write_config(self):
         dirs = PlatformDirs("pyobs-task-editor", "pyobs")
         with open(dirs.user_config_path, "w") as f:
-            print(self.config.model_dump())
             yaml.safe_dump(self.config.model_dump(), f)
 
     @QtCore.Slot()
@@ -111,17 +142,23 @@ class MainWindow(QtWidgets.QMainWindow):
         if task is None:
             return
 
-        all_tasks = self.backend.get_tasks()
-        existing_task = any([t.id == task.id for t in all_tasks])
-        if existing_task:
-            self.backend.update_task(task)
-        else:
-            self.backend.add_task(task)
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
+        thread = SaveTaskThread(self, self.backend, task)
+        thread.task_saved.connect(QtWidgets.QApplication.restoreOverrideCursor)
+        thread.finished.connect(thread.deleteLater)
+        thread.start()
 
     @QtCore.Slot()
     def _sync_tasks(self):
-        tasks = self.backend.get_tasks()
-        print(tasks)
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
+        thread = SyncTasksThread(self, self.backend)
+        thread.tasks_ready.connect(self._tasks_synced)
+        thread.finished.connect(thread.deleteLater)
+        thread.start()
+
+    @QtCore.Slot(list)
+    def _tasks_synced(self, tasks: list[Task]):
+        QtWidgets.QApplication.restoreOverrideCursor()
         self.task_list.set_tasks(tasks)
 
     @QtCore.Slot()
@@ -143,7 +180,18 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.Slot(Connection)
     def _connect(self, conn):
-        print(conn)
         self.backend = HttpBackend(url=conn.url, token=conn.token)
         self.task_widget.set_backend(self.backend)
+        self._update_enabled()
         self._sync_tasks()
+
+    @QtCore.Slot()
+    def _update_enabled(self):
+        has_backend = self.backend is not None
+        self.task_list.setEnabled(has_backend)
+        self.task_widget.setEnabled(has_backend)
+        self.action_new.setEnabled(has_backend)
+        self.action_save.setEnabled(has_backend)
+        self.action_sync.setEnabled(has_backend)
+        self.action_projects.setEnabled(has_backend)
+        self.action_users.setEnabled(has_backend)

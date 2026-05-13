@@ -22,6 +22,8 @@ class TaskListWidget(QtWidgets.QWidget):
             item = QtWidgets.QListWidgetItem(task.name)
             item.setData(QtCore.Qt.UserRole, task)
             self.task_list.addItem(item)
+        if len(tasks) > 0:
+            self.task_list.setCurrentRow(0)
 
     @QtCore.Slot()
     def _selection_changed(self):
@@ -34,3 +36,6 @@ class TaskListWidget(QtWidgets.QWidget):
         item.setData(QtCore.Qt.UserRole, task)
         self.task_list.addItem(item)
         self.task_list.setCurrentItem(item)
+
+    def __getattr__(self, item):
+        return self.task_list.__getattribute__(item)

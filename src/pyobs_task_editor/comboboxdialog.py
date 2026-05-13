@@ -5,6 +5,7 @@ class ComboBoxDialog(QtWidgets.QDialog):
     def __init__(self, title: str, options: list[str]) -> None:
         super().__init__()
         self.setWindowTitle(title)
+        self.resize(400, 20)
         self.setLayout(QtWidgets.QHBoxLayout())
         self.combo_box = QtWidgets.QComboBox()
         self.combo_box.addItems(options)

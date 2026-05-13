@@ -30,6 +30,7 @@ class TaskWidget(QtWidgets.QTabWidget):
 
     @QtCore.Slot(list)
     def set_task(self, task: Task) -> None:
+        self.setEnabled(task is not None)
         self._task = task
         self.tab_task.set_task(self._task)
         self.tab_scheduler.set_task(self._task)
