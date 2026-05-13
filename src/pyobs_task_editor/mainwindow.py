@@ -94,7 +94,7 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addAction(self.action_save)
         self.action_sync = QtGui.QAction(qa.icon("mdi6.sync"), "Sync", self)
         toolbar.addAction(self.action_sync)
-        self.action_sync.triggered.connect(self._sync_tasks)
+        self.action_sync.triggered.connect(self.sync_tasks)
         toolbar.addSeparator()
         self.action_projects = QtGui.QAction(qa.icon("mdi6.format-list-group"), "Projects", self)
         self.action_projects.triggered.connect(self._edit_projects)
@@ -147,6 +147,14 @@ class MainWindow(QtWidgets.QMainWindow):
         thread.task_saved.connect(QtWidgets.QApplication.restoreOverrideCursor)
         thread.finished.connect(thread.deleteLater)
         thread.start()
+
+    @QtCore.Slot()
+    def sync_tasks(self):
+        if (
+            QtWidgets.QMessageBox.question(self, "Sync tasks", "Syncing tasks will undo all local changes. Continue?")
+            == QtWidgets.QMessageBox.StandardButton.Yes
+        ):
+            self._sync_tasks()
 
     @QtCore.Slot()
     def _sync_tasks(self):
