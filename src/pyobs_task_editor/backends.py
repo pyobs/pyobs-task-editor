@@ -22,6 +22,9 @@ class Project(pydantic.BaseModel):
 
 class Backend(metaclass=abc.ABCMeta):
     @abc.abstractmethod
+    def connect(self) -> User: ...
+
+    @abc.abstractmethod
     def get_users(self): ...
 
     @abc.abstractmethod
@@ -53,6 +56,12 @@ class HttpBackend(Backend):
     def __init__(self, url: str, token: str) -> None:
         self._url = url
         self._headers = {"Authorization": f"Token {token}"}  # local debug token
+        self._user: User | None = None
+
+    def connect(self) -> User:
+        req = requests.get(urljoin(self._url, "/api/me/"), headers=self._headers)
+        self._user = User.model_validate(req.json())
+        return self._user
 
     def get_users(self):
         req = requests.get(urljoin(self._url, "/api/users/"), headers=self._headers)

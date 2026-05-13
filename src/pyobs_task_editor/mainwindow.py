@@ -8,7 +8,7 @@ from platformdirs import PlatformDirs
 from pydantic import Field
 
 from pyobs.robotic import Task
-from pyobs_task_editor.backends import HttpBackend, Backend
+from pyobs_task_editor.backends import HttpBackend, Backend, User
 from pyobs_task_editor.connectionsdialog import ConnectionsDialog
 from pyobs_task_editor.projectsdialog import ProjectsDialog
 from pyobs_task_editor.tasklistwidget import TaskListWidget
@@ -64,6 +64,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.config = Config()
         self._read_config()
         self.backend: Backend | None = None
+        self._user: User | None = None
 
         self.resize(800, 600)
         self.setWindowTitle("pyobs task editor")
@@ -189,6 +190,7 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.Slot(Connection)
     def _connect(self, conn):
         self.backend = HttpBackend(url=conn.url, token=conn.token)
+        self._user = self.backend.connect()
         self.task_widget.set_backend(self.backend)
         self._update_enabled()
         self._sync_tasks()
@@ -196,10 +198,11 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.Slot()
     def _update_enabled(self):
         has_backend = self.backend is not None
+        is_superuser = self._user is not None and self._user.is_superuser
         self.task_list.setEnabled(has_backend)
         self.task_widget.setEnabled(has_backend)
         self.action_new.setEnabled(has_backend)
         self.action_save.setEnabled(has_backend)
         self.action_sync.setEnabled(has_backend)
-        self.action_projects.setEnabled(has_backend)
-        self.action_users.setEnabled(has_backend)
+        self.action_projects.setEnabled(has_backend and is_superuser)
+        self.action_users.setEnabled(has_backend and is_superuser)
