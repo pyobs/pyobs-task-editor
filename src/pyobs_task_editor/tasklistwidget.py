@@ -25,7 +25,9 @@ class TaskListWidget(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def _selection_changed(self):
-        self.task_selected.emit(self.task_list.item(self.task_list.currentRow()).data(QtCore.Qt.UserRole))
+        item = self.task_list.item(self.task_list.currentRow())
+        if item is not None:
+            self.task_selected.emit(item.data(QtCore.Qt.UserRole))
 
     def add_task(self, task: Task):
         item = QtWidgets.QListWidgetItem(task.name)

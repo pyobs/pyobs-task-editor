@@ -21,7 +21,6 @@ class ConnectionsDialog(QtWidgets.QDialog):
         layout.addLayout(hlayout)
 
         self.list_widget = ListWithButtonsWidget()
-        # self.list_widget.addItems(projects)
         self.list_widget.item_selected.connect(self._connection_selected)
         self.list_widget.add_clicked.connect(self._add_connection)
         self.list_widget.remove_clicked.connect(self._remove_connection)
@@ -65,6 +64,8 @@ class ConnectionsDialog(QtWidgets.QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+        self.update_connection_list()
+
     @QtCore.Slot()
     def _login(self) -> None:
         res = requests.post(
@@ -78,8 +79,14 @@ class ConnectionsDialog(QtWidgets.QDialog):
 
     @QtCore.Slot()
     def _connection_selected(self) -> None:
+        item = self.list_widget.currentItem()
+        if item is None:
+            self.name_widget.clear()
+            self.url_widget.clear()
+            self.token_widget.clear()
+            return
         self.updating = True
-        conn = self.list_widget.currentItem().data(QtCore.Qt.UserRole)
+        conn = item.data(QtCore.Qt.UserRole)
         self.name_widget.setText(conn.name)
         self.url_widget.setText(conn.url)
         self.token_widget.setText(conn.token)
@@ -98,9 +105,10 @@ class ConnectionsDialog(QtWidgets.QDialog):
 
     @QtCore.Slot()
     def _update_connection_from_gui(self) -> None:
-        if self.updating:
+        item = self.list_widget.currentItem()
+        if self.updating or item is None:
             return
-        conn = self.list_widget.currentItem().data(QtCore.Qt.UserRole)
+        conn = item.data(QtCore.Qt.UserRole)
         conn.name = self.name_widget.text()
         conn.url = self.url_widget.text()
         conn.token = self.token_widget.text()

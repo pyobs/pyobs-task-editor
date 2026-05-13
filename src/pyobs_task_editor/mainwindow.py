@@ -1,3 +1,5 @@
+import functools
+
 import pydantic
 import yaml
 from PySide6 import QtWidgets, QtCore, QtGui
@@ -41,7 +43,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.connection_menu = QtWidgets.QMenu()
         for conn in self.config.connections:
             action = QtGui.QAction(conn.name, self)
-            action.triggered.connect(lambda: self._connect(conn))
+            action.triggered.connect(functools.partial(self._connect, conn))
             self.connection_menu.addAction(action)
 
         self.connection_widget = QtWidgets.QToolButton()
@@ -141,6 +143,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.Slot(Connection)
     def _connect(self, conn):
+        print(conn)
         self.backend = HttpBackend(url=conn.url, token=conn.token)
         self.task_widget.set_backend(self.backend)
         self._sync_tasks()
