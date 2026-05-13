@@ -56,7 +56,10 @@ class HttpBackend(Backend):
 
     def get_users(self):
         req = requests.get(urljoin(self._url, "/api/users/"), headers=self._headers)
-        return [User.model_validate(user) for user in req.json()]
+        obj = req.json()
+        if "detail" in obj:
+            raise ValueError(obj["detail"])
+        return [User.model_validate(user) for user in obj]
 
     def add_user(self, user: User):
         requests.post(urljoin(self._url, "/api/users/"), json=user.model_dump(mode="json"), headers=self._headers)
@@ -70,7 +73,10 @@ class HttpBackend(Backend):
 
     def get_projects(self):
         req = requests.get(urljoin(self._url, "/api/projects/"), headers=self._headers)
-        return [Project.model_validate(project) for project in req.json()]
+        obj = req.json()
+        if "detail" in obj:
+            raise ValueError(obj["detail"])
+        return [Project.model_validate(project) for project in obj]
 
     def add_project(self, project: Project):
         requests.post(urljoin(self._url, "/api/projects/"), json=project.model_dump(mode="json"), headers=self._headers)

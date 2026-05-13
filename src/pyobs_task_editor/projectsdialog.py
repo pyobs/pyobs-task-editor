@@ -11,8 +11,8 @@ class ProjectsDialog(QtWidgets.QDialog):
         self.setWindowTitle("Projects")
 
         self._backend = backend
-        self._projects = backend.get_projects()
-        projects = [p.code for p in backend.get_projects()]
+        self._projects: list[Project] = []
+        self._users: list[User] = []
         self._current_project: Project | None = None
         self._updating = False
 
@@ -23,7 +23,6 @@ class ProjectsDialog(QtWidgets.QDialog):
         layout.addLayout(hlayout)
 
         self.list_widget = ListWithButtonsWidget()
-        self.list_widget.addItems(projects)
         self.list_widget.item_selected.connect(self._project_selected)
         self.list_widget.add_clicked.connect(self._add_project)
         self.list_widget.remove_clicked.connect(self._remove_project)
@@ -54,6 +53,21 @@ class ProjectsDialog(QtWidgets.QDialog):
         buttons.accepted.connect(self._close)
         buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
+
+        QtCore.QTimer.singleShot(0, self._init_dialog)
+
+    @QtCore.Slot()
+    def _init_dialog(self) -> None:
+        try:
+            self._projects = self._backend.get_projects()
+            self._users = self._backend.get_users()
+            projects = [p.code for p in self._projects]
+            print("additems")
+            self.list_widget.addItems(projects)
+
+        except ValueError as e:
+            QtWidgets.QMessageBox.warning(self, "Warning", str(e))
+            self.close()
 
     @QtCore.Slot()
     def _update_project_from_gui(self) -> None:
@@ -113,7 +127,7 @@ class ProjectsDialog(QtWidgets.QDialog):
             self.project_name.setText(str(self._current_project.name))
             self.priority.setValue(self._current_project.priority)
             self.users.clear()
-            for user in self._backend.get_users():
+            for user in self._users:
                 item = QtWidgets.QListWidgetItem(user.username)
                 item.setData(QtCore.Qt.ItemDataRole.UserRole, user)
                 item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)

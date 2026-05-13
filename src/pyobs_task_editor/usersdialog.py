@@ -11,7 +11,7 @@ class UsersDialog(QtWidgets.QDialog):
         self.setWindowTitle("Users")
 
         self._backend = backend
-        self._users = backend.get_users()
+        self._users: list[User] = []
         self._updating = False
 
         layout = QtWidgets.QVBoxLayout()
@@ -43,6 +43,16 @@ class UsersDialog(QtWidgets.QDialog):
         buttons.rejected.connect(self.close)
         hlayout.addWidget(buttons)
 
+        QtCore.QTimer.singleShot(0, self._init_dialog)
+
+    @QtCore.Slot()
+    def _init_dialog(self) -> None:
+        print("init")
+        try:
+            self._users = self._backend.get_users()
+        except ValueError as e:
+            QtWidgets.QMessageBox.warning(self, "Warning", str(e))
+            self.close()
         self._fill_table()
 
     def _fill_table(self) -> None:
