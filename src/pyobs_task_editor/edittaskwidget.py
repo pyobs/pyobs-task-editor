@@ -28,6 +28,8 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.project_widget.currentTextChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Project", self.project_widget)
         self.duration_widget = QtWidgets.QSpinBox()
+        self.duration_widget.setMinimum(1)
+        self.duration_widget.setMaximum(86400)
         self.duration_widget.valueChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Duration", self.duration_widget)
         self.priority_widget = QtWidgets.QDoubleSpinBox()
