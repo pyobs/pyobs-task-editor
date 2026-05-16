@@ -1,3 +1,6 @@
+import datetime
+import functools
+
 from astropy.time import Time
 from typing import cast
 
@@ -119,15 +122,21 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
                     if hasattr(meta, "le"):
                         widget.setMaximum(meta.le)
                 widget.setValue(getattr(obj, name))
-                widget.valueChanged.connect(lambda v: setattr(obj, name, v))
+                widget.valueChanged.connect(functools.partial(self._value_changed, obj, name))
             elif info.annotation == Time:
                 widget = QtWidgets.QDateTimeEdit()
                 widget.setDisplayFormat("yyyy/MM/dd HH:mm:ss")
                 widget.setCalendarPopup(True)
                 widget.setDateTime(getattr(obj, name).to_datetime())
-                widget.dateTimeChanged.connect(lambda v: setattr(obj, name, Time(v)))
+                widget.dateTimeChanged.connect(functools.partial(self._value_changed, obj, name))
             else:
                 widget = QtWidgets.QLineEdit()
                 widget.setText(getattr(obj, name))
-                widget.textChanged.connect(lambda v: setattr(obj, name, v))
+                widget.textChanged.connect(functools.partial(self._value_changed, obj, name))
             layout.addRow(name, widget)
+
+    @QtCore.Slot(float)
+    @QtCore.Slot(str)
+    @QtCore.Slot(datetime.datetime)
+    def _value_changed(self, obj, name, value):
+        setattr(obj, name, value)
