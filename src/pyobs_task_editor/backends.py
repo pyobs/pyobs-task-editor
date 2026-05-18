@@ -105,6 +105,8 @@ class HttpBackend(Backend):
         return [Task.model_validate(task) for task in req.json()]
 
     def add_task(self, task: Task):
+        print("add")
+        print(task, task.project)
         requests.post(
             urljoin(self._url, f"/api/projects/{task.project}/tasks/"),
             json=task.model_dump(mode="json"),

@@ -49,6 +49,8 @@ class EditTaskWidget(QtWidgets.QWidget):
 
         self.task_id_widget.setText(task.id)
         self.task_name_widget.setText(task.name)
+        if task.project == "":
+            task.project = self.project_widget.currentText()
         self.project_widget.setCurrentText(task.project)
         self.duration_widget.setValue(task.duration)
         self.priority_widget.setValue(task.priority)
