@@ -2,7 +2,9 @@ import abc
 import pydantic
 from urllib.parse import urljoin
 import requests
+from astropy.time import Time
 from pyobs.robotic import Task
+from pyobs.robotic.observation import ObservationList, Observation
 
 
 class User(pydantic.BaseModel):
@@ -50,6 +52,11 @@ class Backend(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def update_task(self, task: Task): ...
+
+    @abc.abstractmethod
+    def get_observations(
+        self, task: Task | None = None, start: Time | None = None, end: Time | None = None, state: str | None = None
+    ): ...
 
 
 class HttpBackend(Backend):
@@ -117,3 +124,22 @@ class HttpBackend(Backend):
         requests.put(
             urljoin(self._url, f"/api/tasks/{task.id}/"), json=task.model_dump(mode="json"), headers=self._headers
         )
+
+    def get_observations(
+        self, task: Task | None = None, start: Time | None = None, end: Time | None = None, state: str | None = None
+    ) -> ObservationList:
+        params = {}
+        if start is not None:
+            params["start"] = start.isot
+        if end is not None:
+            params["end"] = end.isot
+        if state is not None:
+            params["state"] = state
+        if task is not None:
+            params["task"] = task.id
+
+        print(params)
+        req = requests.get(urljoin(self._url, f"/api/observations/"), headers=self._headers, params=params)
+
+        print(req.request.url)
+        return ObservationList([Observation.model_validate(obs) for obs in req.json()])
