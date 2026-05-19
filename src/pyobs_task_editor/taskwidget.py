@@ -48,10 +48,12 @@ class TaskWidget(QtWidgets.QTabWidget):
         self.tab_target.set_task(self._task)
         self.tab_script.set_task(self._task)
 
-        schedule = self._backend.get_observations(task=task, start=Time.now(), state="pending,in_progress")
+        schedule = self._backend.get_observations(task=task, end_after=Time.now(), state="pending,in_progress")
         self.tab_schedule.set_observations(schedule)
 
-        observations = self._backend.get_observations(task=task, end=Time.now(), state="completed,aborted,failed")
+        observations = self._backend.get_observations(
+            task=task, end_before=Time.now(), state="completed,aborted,failed"
+        )
         self.tab_observations.set_observations(observations)
 
     def get_task(self) -> Task | None:

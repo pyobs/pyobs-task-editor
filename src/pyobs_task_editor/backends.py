@@ -55,7 +55,13 @@ class Backend(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def get_observations(
-        self, task: Task | None = None, start: Time | None = None, end: Time | None = None, state: str | None = None
+        self,
+        task: Task | None = None,
+        start_before: Time | None = None,
+        start_after: Time | None = None,
+        end_before: Time | None = None,
+        end_after: Time | None = None,
+        state: str | None = None,
     ): ...
 
 
@@ -126,20 +132,27 @@ class HttpBackend(Backend):
         )
 
     def get_observations(
-        self, task: Task | None = None, start: Time | None = None, end: Time | None = None, state: str | None = None
+        self,
+        task: Task | None = None,
+        start_before: Time | None = None,
+        start_after: Time | None = None,
+        end_before: Time | None = None,
+        end_after: Time | None = None,
+        state: str | None = None,
     ) -> ObservationList:
         params = {}
-        if start is not None:
-            params["start"] = start.isot
-        if end is not None:
-            params["end"] = end.isot
+        if start_before is not None:
+            params["start_before"] = start_before.isot
+        if start_after is not None:
+            params["start_after"] = start_after.isot
+        if end_before is not None:
+            params["end_before"] = end_before.isot
+        if end_after is not None:
+            params["end_after"] = end_after.isot
         if state is not None:
             params["state"] = state
         if task is not None:
             params["task"] = task.id
 
-        print(params)
         req = requests.get(urljoin(self._url, f"/api/observations/"), headers=self._headers, params=params)
-
-        print(req.request.url)
         return ObservationList([Observation.model_validate(obs) for obs in req.json()])
