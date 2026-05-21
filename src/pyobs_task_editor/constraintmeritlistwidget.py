@@ -121,6 +121,12 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
                         widget.setMinimum(meta.ge)
                     if hasattr(meta, "le"):
                         widget.setMaximum(meta.le)
+                    if (
+                        isinstance(widget, QtWidgets.QDoubleSpinBox)
+                        and info.json_schema_extra is not None
+                        and "decimals" in info.json_schema_extra
+                    ):
+                        widget.setDecimals(info.json_schema_extra["decimals"])
                 widget.setValue(getattr(obj, name))
                 widget.valueChanged.connect(functools.partial(self._value_changed, obj, name))
             elif info.annotation == Time:
