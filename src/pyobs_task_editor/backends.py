@@ -78,16 +78,13 @@ class HttpBackend(Backend):
 
     def get_users(self):
         req = requests.get(urljoin(self._url, "/api/users/"), headers=self._headers)
-        obj = req.json()
-        if "detail" in obj:
-            raise ValueError(obj["detail"])
-        return [User.model_validate(user) for user in obj]
+        return [User.model_validate(user) for user in req.json()["results"]]
 
     def add_user(self, user: User):
         requests.post(urljoin(self._url, "/api/users/"), json=user.model_dump(mode="json"), headers=self._headers)
 
     def update_user(self, user: User):
-        req = requests.put(
+        requests.put(
             urljoin(self._url, f"/api/users/{user.id}/"),
             json=user.model_dump(mode="json"),
             headers=self._headers,
@@ -95,10 +92,7 @@ class HttpBackend(Backend):
 
     def get_projects(self):
         req = requests.get(urljoin(self._url, "/api/projects/"), headers=self._headers)
-        obj = req.json()
-        if "detail" in obj:
-            raise ValueError(obj["detail"])
-        return [Project.model_validate(project) for project in obj]
+        return [Project.model_validate(project) for project in req.json()["results"]]
 
     def add_project(self, project: Project):
         requests.post(urljoin(self._url, "/api/projects/"), json=project.model_dump(mode="json"), headers=self._headers)
@@ -115,11 +109,9 @@ class HttpBackend(Backend):
             req = requests.get(urljoin(self._url, "/api/tasks/"), headers=self._headers)
         else:
             req = requests.get(urljoin(self._url, f"/api/projects/{project.id}/tasks/"), headers=self._headers)
-        return [Task.model_validate(task) for task in req.json()]
+        return [Task.model_validate(task) for task in req.json()["results"]]
 
     def add_task(self, task: Task):
-        print("add")
-        print(task, task.project)
         requests.post(
             urljoin(self._url, f"/api/projects/{task.project}/tasks/"),
             json=task.model_dump(mode="json"),
