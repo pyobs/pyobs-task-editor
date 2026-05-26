@@ -147,4 +147,4 @@ class HttpBackend(Backend):
             params["task"] = task.id
 
         req = requests.get(urljoin(self._url, f"/api/observations/"), headers=self._headers, params=params)
-        return ObservationList([Observation.model_validate(obs) for obs in req.json()])
+        return ObservationList([Observation.model_validate(obs) for obs in req.json()["results"]])
