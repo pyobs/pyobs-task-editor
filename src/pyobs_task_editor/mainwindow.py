@@ -11,6 +11,7 @@ from pyobs_task_editor.backends import HttpBackend, Backend, User
 from pyobs_task_editor.connectionsdialog import ConnectionsDialog
 from pyobs_task_editor.projectsdialog import ProjectsDialog
 from pyobs_task_editor.tasklistwidget import TaskListWidget
+from pyobs_task_editor.tasktreemodel import TaskTreeModel
 from pyobs_task_editor.taskwidget import TaskWidget
 from pyobs_task_editor.usersdialog import UsersDialog
 
@@ -109,7 +110,9 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter = QtWidgets.QSplitter()
         self.setCentralWidget(splitter)
 
+        self.model = TaskTreeModel()
         self.task_list = TaskListWidget()
+        self.task_list.set_model(self.model)
         splitter.addWidget(self.task_list)
 
         self.task_widget = TaskWidget(self.backend)

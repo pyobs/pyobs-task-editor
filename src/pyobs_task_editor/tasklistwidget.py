@@ -1,5 +1,6 @@
 from PySide6 import QtWidgets, QtCore
 from pyobs.robotic import Task
+from pyobs_task_editor.tasktreemodel import TaskTreeModel
 
 
 class TaskListWidget(QtWidgets.QWidget):
@@ -11,31 +12,33 @@ class TaskListWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
 
-        self.task_list = QtWidgets.QListWidget()
-        self.task_list.currentItemChanged.connect(self._selection_changed)
-        layout.addWidget(self.task_list)
+        self.task_tree = QtWidgets.QTreeView()
+        self.task_tree.setHeaderHidden(True)
+        layout.addWidget(self.task_tree)
 
-    @QtCore.Slot(list)
+    def set_model(self, model: TaskTreeModel):
+        self._model = model
+        self.task_tree.setModel(model)
+        self.task_tree.selectionModel().currentChanged.connect(self._selection_changed)
+
     def set_tasks(self, tasks: list[Task]):
-        self.task_list.clear()
-        for task in tasks:
-            item = QtWidgets.QListWidgetItem(task.name)
-            item.setData(QtCore.Qt.UserRole, task)
-            self.task_list.addItem(item)
-        if len(tasks) > 0:
-            self.task_list.setCurrentRow(0)
-
-    @QtCore.Slot()
-    def _selection_changed(self):
-        item = self.task_list.item(self.task_list.currentRow())
-        if item is not None:
-            self.task_selected.emit(item.data(QtCore.Qt.UserRole))
+        self._model.set_tasks(tasks)
+        self.task_tree.expandAll()
+        # Select the first task if any exist
+        first = self._model.index(0, 0, QtCore.QModelIndex())  # first project
+        first_task = self._model.index(0, 0, first)  # first task under it
+        if first_task.isValid():
+            self.task_tree.selectionModel().setCurrentIndex(first_task, QtCore.QItemSelectionModel.ClearAndSelect)
 
     def add_task(self, task: Task):
-        item = QtWidgets.QListWidgetItem(task.name)
-        item.setData(QtCore.Qt.UserRole, task)
-        self.task_list.addItem(item)
-        self.task_list.setCurrentItem(item)
+        self._model.add_task(task)
+        self.task_tree.expandAll()
+        idx = self._model.index_of(task)
+        if idx.isValid():
+            self.task_tree.selectionModel().setCurrentIndex(idx, QtCore.QItemSelectionModel.ClearAndSelect)
 
-    def __getattr__(self, item):
-        return self.task_list.__getattribute__(item)
+    @QtCore.Slot(QtCore.QModelIndex, QtCore.QModelIndex)
+    def _selection_changed(self, current: QtCore.QModelIndex, previous: QtCore.QModelIndex):
+        task = current.data(QtCore.Qt.UserRole)
+        if task is not None:
+            self.task_selected.emit(task)
