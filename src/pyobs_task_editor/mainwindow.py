@@ -121,6 +121,10 @@ class MainWindow(QtWidgets.QMainWindow):
         splitter.setSizes([1, 3])
         self.task_list.task_selected.connect(self.task_widget.set_task)
         self.task_widget.tab_task.task_changed.connect(self._on_task_changed)
+        self.task_widget.tab_script.task_changed.connect(self._on_task_changed)
+        self.task_widget.tab_scheduler.task_changed.connect(self._on_task_changed)
+        self.task_widget.tab_target.task_changed.connect(self._on_task_changed)
+        self.task_widget.tab_script.task_changed.connect(self._on_task_changed)
 
         self._update_enabled()
 
@@ -152,6 +156,7 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
         thread = SaveTaskThread(self, self.backend, task)
         thread.task_saved.connect(QtWidgets.QApplication.restoreOverrideCursor)
+        thread.task_saved.connect(lambda: self.model.mark_clean(task))
         thread.finished.connect(thread.deleteLater)
         thread.start()
 
@@ -239,7 +244,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.Slot(Task)
     def _on_task_changed(self, task: Task):
-        print(task.project)
         self.model.update_task(task)
         self.task_list.task_tree.expandAll()
         idx = self.model.index_of(task)

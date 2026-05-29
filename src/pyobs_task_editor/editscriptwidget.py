@@ -1,14 +1,13 @@
 import io
-
 import yaml
 from PySide6 import QtWidgets, QtCore, QtGui
 
 from pyobs.robotic import Task
-from pyobs_task_editor.backends import Backend
 
 
 class EditScriptWidget(QtWidgets.QWidget):
     script_changed = QtCore.Signal(str)
+    task_changed = QtCore.Signal(Task)
 
     def __init__(self):
         super().__init__()
@@ -51,3 +50,4 @@ class EditScriptWidget(QtWidgets.QWidget):
             with io.StringIO(self.yaml_widget.toPlainText()) as buffer:
                 self._task.script = yaml.safe_load(buffer)
             self.script_changed.emit(self.yaml_widget.toPlainText())
+            self.task_changed.emit(self._task)

@@ -14,6 +14,7 @@ from pyobs_task_editor.comboboxdialog import ComboBoxDialog
 
 class ConstraintMeritListWidget(QtWidgets.QGroupBox):
     item_selected = QtCore.Signal(Task)
+    task_changed = QtCore.Signal()
 
     def __init__(self, title: str, module, name) -> None:
         super().__init__()
@@ -98,6 +99,7 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
             obj = getattr(self._module, dialog.option)()
             getattr(self._task, self._name).append(obj)
             self.update_list(dialog.option)
+            self.task_changed.emit()
 
     @QtCore.Slot()
     def remove_item(self):
@@ -146,3 +148,4 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
     @QtCore.Slot(datetime.datetime)
     def _value_changed(self, obj, name, value):
         setattr(obj, name, value)
+        self.task_changed.emit()

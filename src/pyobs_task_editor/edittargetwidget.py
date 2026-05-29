@@ -7,6 +7,7 @@ from pyobs.robotic.scheduler.targets import Target, SiderealTarget
 
 class EditTargetWidget(QtWidgets.QWidget):
     target_changed = QtCore.Signal(Target)
+    task_changed = QtCore.Signal(Task)
 
     def __init__(self):
         super().__init__()
@@ -63,6 +64,7 @@ class EditTargetWidget(QtWidgets.QWidget):
 
         if not self._updating:
             self.target_changed.emit(target)
+            self.task_changed.emit(self._task)
 
     @QtCore.Slot(str)
     @QtCore.Slot(str)
@@ -89,3 +91,4 @@ class EditTargetWidget(QtWidgets.QWidget):
 
         if not self._updating:
             self.target_changed.emit(self._task.target)
+            self.task_changed.emit(self._task)

@@ -1,3 +1,4 @@
+import qtawesome as qa
 from PySide6 import QtCore, QtGui
 from pyobs.robotic import Task
 
@@ -14,11 +15,27 @@ def _decode(ptr: int) -> tuple[int, int]:
 
 
 class TaskTreeModel(QtCore.QAbstractItemModel):
-    def __init__(self, tasks: list[Task] = [], parent=None):
+
+    def __init__(self, parent=None):
         super().__init__(parent)
         self._projects: list[str] = []
         self._tasks: dict[str, list[Task]] = {}
+        self._dirty: set[str] = set()  # add this
+
+    def set_tasks(self, tasks: list[Task]):
+        self.beginResetModel()
         self._set_tasks(tasks)
+        self._dirty.clear()  # add this
+        self.endResetModel()
+
+    def mark_dirty(self, task: Task):
+        self._dirty.add(task.id)
+
+    def mark_clean(self, task: Task):
+        self._dirty.discard(task.id)
+
+    def is_dirty(self, task: Task) -> bool:
+        return task.id in self._dirty
 
     def _set_tasks(self, tasks: list[Task]):
         self._projects = []
@@ -28,11 +45,6 @@ class TaskTreeModel(QtCore.QAbstractItemModel):
                 self._projects.append(task.project)
                 self._tasks[task.project] = []
             self._tasks[task.project].append(task)
-
-    def set_tasks(self, tasks: list[Task]):
-        self.beginResetModel()
-        self._set_tasks(tasks)
-        self.endResetModel()
 
     def add_task(self, task: Task):
         if task.project not in self._tasks:
@@ -63,6 +75,8 @@ class TaskTreeModel(QtCore.QAbstractItemModel):
 
         if old_project is None:
             return
+
+        self.mark_dirty(task)
 
         if old_project == task.project:
             # Project unchanged — fast path, just repaint
@@ -132,6 +146,8 @@ class TaskTreeModel(QtCore.QAbstractItemModel):
                 return task
             if role == QtCore.Qt.ForegroundRole and not task.active:
                 return QtGui.QColor(QtCore.Qt.GlobalColor.gray)
+            if role == QtCore.Qt.DecorationRole and task.id in self._dirty:
+                return QtGui.QIcon(qa.icon("mdi6.circle-small", color="orange"))
         return None
 
     def flags(self, index: QtCore.QModelIndex) -> QtCore.Qt.ItemFlag:

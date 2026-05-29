@@ -6,6 +6,8 @@ import pyobs.robotic.scheduler.merits
 
 
 class EditSchedulerWidget(QtWidgets.QWidget):
+    task_changed = QtCore.Signal(Task)
+
     def __init__(self):
         super().__init__()
 
@@ -18,6 +20,7 @@ class EditSchedulerWidget(QtWidgets.QWidget):
         self.constraints_widget = ConstraintMeritListWidget(
             "Constraints", pyobs.robotic.scheduler.constraints, "constraints"
         )
+        self.constraints_widget.task_changed.connect(self._on_changed)
         layout.addWidget(self.constraints_widget)
 
         self.merits_widget = ConstraintMeritListWidget("Merits", pyobs.robotic.scheduler.merits, "merits")
@@ -30,3 +33,8 @@ class EditSchedulerWidget(QtWidgets.QWidget):
         self.constraints_widget.set_task(task)
         self.merits_widget.set_task(task)
         self._updating = False
+
+    @QtCore.Slot()
+    def _on_changed(self):  # add this
+        if not self._updating and self._task is not None:
+            self.task_changed.emit(self._task)
