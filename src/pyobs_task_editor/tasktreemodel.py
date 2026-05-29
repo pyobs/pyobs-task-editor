@@ -49,6 +49,11 @@ class TaskTreeModel(QtCore.QAbstractItemModel):
             self._tasks[task.project].append(task)
             self.endInsertRows()
 
+    def update_task(self, task: Task):
+        idx = self.index_of(task)
+        if idx.isValid():
+            self.dataChanged.emit(idx, idx, [QtCore.Qt.DisplayRole])
+
     def index_of(self, task: Task) -> QtCore.QModelIndex:
         if task.project not in self._tasks:
             return QtCore.QModelIndex()

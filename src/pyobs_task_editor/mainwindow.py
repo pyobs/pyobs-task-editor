@@ -120,6 +120,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         splitter.setSizes([1, 3])
         self.task_list.task_selected.connect(self.task_widget.set_task)
+        self.task_widget.tab_task.task_changed.connect(self.model.update_task)
 
         self._update_enabled()
 

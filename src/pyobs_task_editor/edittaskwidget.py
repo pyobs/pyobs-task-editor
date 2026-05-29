@@ -4,6 +4,8 @@ from pyobs_task_editor.backends import Backend
 
 
 class EditTaskWidget(QtWidgets.QWidget):
+    task_changed = QtCore.Signal(Task)  # add this
+
     def __init__(self):
         super().__init__()
 
@@ -70,3 +72,4 @@ class EditTaskWidget(QtWidgets.QWidget):
         self._task.project = self.project_widget.currentText()
         self._task.duration = self.duration_widget.value()
         self._task.priority = self.priority_widget.value()
+        self.task_changed.emit(self._task)
