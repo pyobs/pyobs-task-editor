@@ -33,6 +33,9 @@ class TaskTreeModel(QtCore.QAbstractItemModel):
 
     def mark_clean(self, task: Task):
         self._dirty.discard(task.id)
+        idx = self.index_of(task)
+        if idx.isValid():
+            self.dataChanged.emit(idx, idx, [QtCore.Qt.DecorationRole])
 
     def is_dirty(self, task: Task) -> bool:
         return task.id in self._dirty
