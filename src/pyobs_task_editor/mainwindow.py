@@ -1,5 +1,4 @@
 import functools
-
 import pydantic
 import yaml
 from PySide6 import QtWidgets, QtCore, QtGui
@@ -93,6 +92,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.action_save = QtGui.QAction(qa.icon("mdi6.content-save-edit-outline"), "Save", self)
         self.action_save.triggered.connect(self._save_task)
         toolbar.addAction(self.action_save)
+        self.action_export = QtGui.QAction(qa.icon("mdi6.database-export-outline"), "Export", self)
+        self.action_export.triggered.connect(self._export_task)
+        toolbar.addAction(self.action_export)
         self.action_sync = QtGui.QAction(qa.icon("mdi6.sync"), "Sync", self)
         toolbar.addAction(self.action_sync)
         self.action_sync.triggered.connect(self.sync_tasks)
@@ -150,6 +152,29 @@ class MainWindow(QtWidgets.QMainWindow):
         thread.start()
 
     @QtCore.Slot()
+    def _export_task(self):
+        task = self.task_widget.get_task()
+        if task is None:
+            return
+
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("YAML")
+        dlg.resize(600, 400)
+
+        layout = QtWidgets.QVBoxLayout(dlg)
+
+        text = QtWidgets.QPlainTextEdit()
+        text.setReadOnly(True)
+        text.setPlainText(yaml.dump(task.model_dump()))
+        layout.addWidget(text)
+
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+
+        dlg.exec()
+
+    @QtCore.Slot()
     def sync_tasks(self):
         if (
             QtWidgets.QMessageBox.question(self, "Sync tasks", "Syncing tasks will undo all local changes. Continue?")
@@ -203,6 +228,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.task_widget.setEnabled(has_backend)
         self.action_new.setEnabled(has_backend)
         self.action_save.setEnabled(has_backend)
+        self.action_export.setEnabled(has_backend)
         self.action_sync.setEnabled(has_backend)
         self.action_projects.setEnabled(has_backend and is_superuser)
         self.action_users.setEnabled(has_backend and is_superuser)
