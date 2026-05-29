@@ -17,6 +17,9 @@ class EditTaskWidget(QtWidgets.QWidget):
         general = QtWidgets.QGroupBox("General")
         layout.addWidget(general)
         general_layout = QtWidgets.QFormLayout(general)
+        self.active_widget = QtWidgets.QCheckBox("Active")
+        self.active_widget.checkStateChanged.connect(self._update_task_from_gui)
+        general_layout.addRow("", self.active_widget)
         self.task_id_widget = QtWidgets.QLineEdit()
         self.task_id_widget.setReadOnly(True)
         general_layout.addRow("ID", self.task_id_widget)
@@ -47,6 +50,7 @@ class EditTaskWidget(QtWidgets.QWidget):
         self._updating = True
         self._task = task
 
+        self.active_widget.setChecked(task.active)
         self.task_id_widget.setText(task.id)
         self.task_name_widget.setText(task.name)
         if task.project == "":
@@ -61,6 +65,7 @@ class EditTaskWidget(QtWidgets.QWidget):
     def _update_task_from_gui(self):
         if self._task is None or self._updating:
             return
+        self._task.active = self.active_widget.isChecked()
         self._task.name = self.task_name_widget.text()
         self._task.project = self.project_widget.currentText()
         self._task.duration = self.duration_widget.value()

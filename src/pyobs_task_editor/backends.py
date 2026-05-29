@@ -106,7 +106,7 @@ class HttpBackend(Backend):
 
     def get_tasks(self, project: Project | None = None):
         if project is None:
-            req = requests.get(urljoin(self._url, "/api/tasks/"), headers=self._headers)
+            req = requests.get(urljoin(self._url, "/api/tasks/"), headers=self._headers, params={"all": "true"})
         else:
             req = requests.get(urljoin(self._url, f"/api/projects/{project.id}/tasks/"), headers=self._headers)
         return [Task.model_validate(task) for task in req.json()["results"]]
