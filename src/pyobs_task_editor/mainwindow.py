@@ -120,7 +120,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         splitter.setSizes([1, 3])
         self.task_list.task_selected.connect(self.task_widget.set_task)
-        self.task_widget.tab_task.task_changed.connect(self.model.update_task)
+        self.task_widget.tab_task.task_changed.connect(self._on_task_changed)
 
         self._update_enabled()
 
@@ -236,3 +236,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.action_sync.setEnabled(has_backend)
         self.action_projects.setEnabled(has_backend and is_superuser)
         self.action_users.setEnabled(has_backend and is_superuser)
+
+    @QtCore.Slot(Task)
+    def _on_task_changed(self, task: Task):
+        print(task.project)
+        self.model.update_task(task)
+        self.task_list.task_tree.expandAll()
+        idx = self.model.index_of(task)
+        if idx.isValid():
+            self.task_list.task_tree.selectionModel().setCurrentIndex(idx, QtCore.QItemSelectionModel.ClearAndSelect)

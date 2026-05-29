@@ -50,9 +50,37 @@ class TaskTreeModel(QtCore.QAbstractItemModel):
             self.endInsertRows()
 
     def update_task(self, task: Task):
-        idx = self.index_of(task)
-        if idx.isValid():
-            self.dataChanged.emit(idx, idx, [QtCore.Qt.DisplayRole])
+        # Find the task by ID across all projects (ignoring task.project,
+        # which may already have been updated in the GUI)
+        old_project = None
+        for project, tasks in self._tasks.items():
+            for t in tasks:
+                if t.id == task.id:
+                    old_project = project
+                    break
+            if old_project is not None:
+                break
+
+        if old_project is None:
+            return
+
+        if old_project == task.project:
+            # Project unchanged — fast path, just repaint
+            idx = self.index_of(task)
+            if idx.isValid():
+                self.dataChanged.emit(idx, idx, [QtCore.Qt.DisplayRole, QtCore.Qt.ForegroundRole])
+        else:
+            # Project changed — update stored data and reset
+            self.beginResetModel()
+            self._tasks[old_project] = [t for t in self._tasks[old_project] if t.id != task.id]
+            if not self._tasks[old_project]:
+                self._projects.remove(old_project)
+                del self._tasks[old_project]
+            if task.project not in self._tasks:
+                self._projects.append(task.project)
+                self._tasks[task.project] = []
+            self._tasks[task.project].append(task)
+            self.endResetModel()
 
     def index_of(self, task: Task) -> QtCore.QModelIndex:
         if task.project not in self._tasks:
