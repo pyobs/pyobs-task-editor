@@ -1,5 +1,7 @@
 from PySide6 import QtWidgets, QtCore
+import qtawesome as qa
 from pyobs.robotic import Task
+
 from pyobs_task_editor.backends import Backend
 
 
@@ -32,11 +34,21 @@ class EditTaskWidget(QtWidgets.QWidget):
         self.project_widget.setEditable(False)
         self.project_widget.currentTextChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Project", self.project_widget)
+
+        # Duration row: spinbox + estimate button side by side
+        duration_row = QtWidgets.QHBoxLayout()
         self.duration_widget = QtWidgets.QSpinBox()
         self.duration_widget.setMinimum(1)
         self.duration_widget.setMaximum(86400)
         self.duration_widget.valueChanged.connect(self._update_task_from_gui)
-        general_layout.addRow("Duration", self.duration_widget)
+        duration_row.addWidget(self.duration_widget)
+        self.estimate_button = QtWidgets.QToolButton()
+        self.estimate_button.setIcon(qa.icon("mdi6.timer-play-outline"))
+        self.estimate_button.setToolTip("Estimate duration from script")
+        self.estimate_button.clicked.connect(self._estimate_duration)
+        duration_row.addWidget(self.estimate_button)
+        general_layout.addRow("Duration", duration_row)
+
         self.priority_widget = QtWidgets.QDoubleSpinBox()
         self.priority_widget.valueChanged.connect(self._update_task_from_gui)
         general_layout.addRow("Priority", self.priority_widget)
@@ -73,3 +85,9 @@ class EditTaskWidget(QtWidgets.QWidget):
         self._task.duration = self.duration_widget.value()
         self._task.priority = self.priority_widget.value()
         self.task_changed.emit(self._task)
+
+    @QtCore.Slot()
+    def _estimate_duration(self):
+        if self._task is None:
+            return
+        self.duration_widget.setValue(int(self._task.estimate_duration()))
