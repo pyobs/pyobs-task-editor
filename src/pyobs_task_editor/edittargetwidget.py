@@ -1,5 +1,6 @@
 from astropy.coordinates import SkyCoord
 from PySide6 import QtWidgets, QtCore
+import astropy.units as u
 
 from pyobs.robotic import Task
 from pyobs.robotic.scheduler.targets import Target, SiderealTarget
@@ -42,7 +43,7 @@ class EditTargetWidget(QtWidgets.QWidget):
             self.target_type.setCurrentText("Sidereal")
             self.target_name.setText(task.target.name)
             coords = SkyCoord(ra=task.target.ra, dec=task.target.dec, frame="icrs", unit="deg")
-            self.ra.setText(coords.ra.to_string(sep=" ", pad=True))
+            self.ra.setText(coords.ra.to_string(sep=" ", pad=True, unit="hourangle"))
             self.dec.setText(coords.dec.to_string(sep=" ", pad=True, alwayssign=True))
 
         self._updating = False
@@ -55,7 +56,7 @@ class EditTargetWidget(QtWidgets.QWidget):
         target = self._task.target
         target.name = self.target_name.text()
         try:
-            coord = SkyCoord(ra=self.ra.text(), dec=self.dec.text(), frame="icrs", unit="deg")
+            coord = SkyCoord(ra=self.ra.text(), dec=self.dec.text(), unit=(u.hourangle, u.deg), frame="icrs")
             target.ra = float(coord.ra.degree)
             target.dec = float(coord.dec.degree)
         except ValueError:
