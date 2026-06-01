@@ -130,11 +130,15 @@ class HttpBackend(Backend):
         )
 
     def update_task(self, task: Task):
-        requests.put(
+        req = requests.put(
             urljoin(self._url, f"/api/tasks/{task.id}/"),
             json=_serialize_task(task),
             headers=self._headers,
         )
+        import pprint
+
+        pprint.pprint(_serialize_task(task))
+        pprint.pprint(req.text)
 
     def get_observations(
         self,
