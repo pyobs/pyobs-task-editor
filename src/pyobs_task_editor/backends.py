@@ -22,6 +22,17 @@ class Project(pydantic.BaseModel):
     users: list[str] = pydantic.Field(default=[])
 
 
+def _serialize_task(task: Task) -> dict:
+    """Serialize a Task, working around Pydantic v2's behaviour of dropping
+    subclass fields when serializing polymorphic types as their base class."""
+    data = task.model_dump(mode="json")
+    data["constraints"] = [c.model_dump(mode="json") for c in task.constraints]
+    data["merits"] = [m.model_dump(mode="json") for m in task.merits]
+    if task.target is not None:
+        data["target"] = task.target.model_dump(mode="json")
+    return data
+
+
 class Backend(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def connect(self) -> User: ...
@@ -114,13 +125,15 @@ class HttpBackend(Backend):
     def add_task(self, task: Task):
         requests.post(
             urljoin(self._url, f"/api/projects/{task.project}/tasks/"),
-            json=task.model_dump(mode="json"),
+            json=_serialize_task(task),
             headers=self._headers,
         )
 
     def update_task(self, task: Task):
         requests.put(
-            urljoin(self._url, f"/api/tasks/{task.id}/"), json=task.model_dump(mode="json"), headers=self._headers
+            urljoin(self._url, f"/api/tasks/{task.id}/"),
+            json=_serialize_task(task),
+            headers=self._headers,
         )
 
     def get_observations(
