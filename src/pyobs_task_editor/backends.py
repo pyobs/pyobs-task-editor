@@ -135,10 +135,6 @@ class HttpBackend(Backend):
             json=_serialize_task(task),
             headers=self._headers,
         )
-        import pprint
-
-        pprint.pprint(_serialize_task(task))
-        pprint.pprint(req.text)
 
     def get_observations(
         self,
