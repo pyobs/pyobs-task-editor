@@ -11,6 +11,8 @@ import inspect
 
 from pyobs_task_editor.comboboxdialog import ComboBoxDialog
 
+IGNORED_FIELDS = {"cost", "target_dependent"}
+
 
 class ConstraintMeritListWidget(QtWidgets.QGroupBox):
     item_selected = QtCore.Signal(Task)
@@ -116,6 +118,9 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
 
         obj = item.data(QtCore.Qt.UserRole)
         for name, info in obj.model_fields.items():
+            if name in IGNORED_FIELDS:
+                continue
+
             if info.annotation in [float, int]:
                 widget = QtWidgets.QDoubleSpinBox() if info.annotation is float else QtWidgets.QSpinBox()
                 for meta in info.metadata:
