@@ -73,10 +73,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addToolBar(toolbar)
 
         self.connection_menu = QtWidgets.QMenu()
-        for conn in self.config.connections:
-            action = QtGui.QAction(conn.name, self)
-            action.triggered.connect(functools.partial(self._connect, conn))
-            self.connection_menu.addAction(action)
+        self._rebuild_connection_menu()
 
         self.connection_widget = QtWidgets.QToolButton()
         self.connection_widget.setIcon(qa.icon("mdi6.cast-connected"))
@@ -221,6 +218,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if dialog.exec_() == QtWidgets.QDialog.Accepted:
             self.config = dialog.config
             self._write_config()
+            self._rebuild_connection_menu()
 
     @QtCore.Slot(Connection)
     def _connect(self, conn):
@@ -250,3 +248,10 @@ class MainWindow(QtWidgets.QMainWindow):
         idx = self.model.index_of(task)
         if idx.isValid():
             self.task_list.task_tree.selectionModel().setCurrentIndex(idx, QtCore.QItemSelectionModel.ClearAndSelect)
+
+    def _rebuild_connection_menu(self):
+        self.connection_menu.clear()
+        for conn in self.config.connections:
+            action = QtGui.QAction(conn.name, self)
+            action.triggered.connect(functools.partial(self._connect, conn))
+            self.connection_menu.addAction(action)

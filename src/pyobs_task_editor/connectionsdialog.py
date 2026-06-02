@@ -20,7 +20,7 @@ class ConnectionsDialog(QtWidgets.QDialog):
         hlayout = QtWidgets.QHBoxLayout()
         layout.addLayout(hlayout)
 
-        self.list_widget = ListWithButtonsWidget()
+        self.list_widget = ListWithButtonsWidget(remove_button=True)
         self.list_widget.item_selected.connect(self._connection_selected)
         self.list_widget.add_clicked.connect(self._add_connection)
         self.list_widget.remove_clicked.connect(self._remove_connection)
@@ -101,7 +101,12 @@ class ConnectionsDialog(QtWidgets.QDialog):
 
     @QtCore.Slot()
     def _remove_connection(self) -> None:
-        pass
+        item = self.list_widget.currentItem()
+        if item is None:
+            return
+        conn = item.data(QtCore.Qt.UserRole)
+        self.config.connections.remove(conn)
+        self.update_connection_list()
 
     @QtCore.Slot()
     def _update_connection_from_gui(self) -> None:
