@@ -2,7 +2,7 @@ import datetime
 import functools
 
 from astropy.time import Time
-from typing import cast
+from typing import cast, get_origin, Literal, get_args
 
 from PySide6 import QtWidgets, QtCore
 import qtawesome as qa
@@ -142,6 +142,11 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
                 widget.setCalendarPopup(True)
                 widget.setDateTime(getattr(obj, name).to_datetime())
                 widget.dateTimeChanged.connect(functools.partial(self._value_changed, obj, name))
+            elif get_origin(info.annotation) is Literal:
+                widget = QtWidgets.QComboBox()
+                widget.addItems([str(a) for a in get_args(info.annotation)])
+                widget.setCurrentText(str(getattr(obj, name)))
+                widget.currentTextChanged.connect(functools.partial(self._value_changed, obj, name))
             else:
                 widget = QtWidgets.QLineEdit()
                 widget.setText(getattr(obj, name))
