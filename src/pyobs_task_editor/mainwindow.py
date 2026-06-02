@@ -207,7 +207,8 @@ class MainWindow(QtWidgets.QMainWindow):
     @QtCore.Slot()
     def _edit_projects(self):
         dialog = ProjectsDialog(self.backend)
-        dialog.exec_()
+        if dialog.exec_() == QtWidgets.QDialog.DialogCode.Accepted:
+            self.task_widget.tab_task.set_backend(self.backend)
 
     @QtCore.Slot()
     def _edit_users(self):
