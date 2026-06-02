@@ -192,15 +192,29 @@ class EditPickerWidget(QtWidgets.QGroupBox):
             return
         try:
             raw = yaml.safe_load(self._yaml_widget.toPlainText()) or {}
-            self._picker = CustomPicker(raw=raw)
-            self.picker_changed.emit(self._picker)
-            if self._yaml_status is not None:
-                self._yaml_status.setText("✓ Valid")
-                self._yaml_status.setStyleSheet("color: green;")
         except yaml.YAMLError as e:
-            if self._yaml_status is not None:
-                self._yaml_status.setText(f"✗ Invalid YAML: {e}")
-                self._yaml_status.setStyleSheet("color: red;")
+            self.set_error(f"Invalid YAML: {e}")
+            return
+        try:
+            # Validate the raw dict as a Picker to catch schema errors immediately
+            Picker.model_validate(raw)
+            self.set_error(None)
+        except Exception as e:
+            self.set_error(str(e))
+        # Always update the picker regardless — CustomPicker stores raw YAML as-is
+        self._picker = CustomPicker(raw=raw)
+        self.picker_changed.emit(self._picker)
+
+    def set_error(self, message: str | None):
+        """Called externally to report a validation error on the current picker value."""
+        if self._yaml_status is None:
+            return
+        if message is None:
+            self._yaml_status.setText("✓ Valid")
+            self._yaml_status.setStyleSheet("color: green;")
+        else:
+            self._yaml_status.setText(f"✗ {message}")
+            self._yaml_status.setStyleSheet("color: red;")
 
     @QtCore.Slot()
     def _field_changed(self):
