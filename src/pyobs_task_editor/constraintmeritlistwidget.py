@@ -110,8 +110,8 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
     @QtCore.Slot(QtWidgets.QListWidgetItem)
     def _item_selected(self, item):
         layout = cast(QtWidgets.QFormLayout, self.edit_group.layout())
-        for i in reversed(range(layout.count())):
-            layout.itemAt(i).widget().setParent(None)
+        while layout.rowCount() > 0:
+            layout.removeRow(0)
 
         if item is None:
             return
