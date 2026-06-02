@@ -1,20 +1,38 @@
 from __future__ import annotations
 
-import inspect
-from typing import get_type_hints, get_origin, get_args, Literal
+from typing import Any, get_origin, get_args, Literal
 from pydantic.fields import FieldInfo
 
+import yaml
 from PySide6 import QtWidgets, QtCore
 
 from pyobs.robotic.scheduler.targets.picker import Picker, CsvPicker
 
-# All known Picker subclasses
-_PICKER_CLASSES: dict[str, type[Picker]] = {
+
+class CustomPicker(Picker):
+    """Local-only picker that holds arbitrary YAML, passed through as-is on serialization."""
+
+    raw: dict[str, Any] = {}
+
+    async def __call__(self, *args, **kwargs):
+        raise NotImplementedError("CustomPicker is a local-only type and cannot be called.")
+
+    def model_dump(self, **kwargs) -> dict[str, Any]:
+        return dict(self.raw)
+
+
+# All known Picker subclasses — add new ones here as pyobs-core grows
+_PICKER_CLASSES: dict[str, type] = {
     "CsvPicker": CsvPicker,
+    "Custom": CustomPicker,
 }
+
+_CUSTOM = "Custom"
 
 
 def _picker_type_name(picker: Picker) -> str:
+    if isinstance(picker, CustomPicker):
+        return _CUSTOM
     return type(picker).__name__
 
 
@@ -27,6 +45,8 @@ class EditPickerWidget(QtWidgets.QGroupBox):
         self._picker: Picker | None = None
         self._updating = False
         self._field_widgets: dict[str, QtWidgets.QWidget] = {}
+        self._yaml_widget: QtWidgets.QPlainTextEdit | None = None
+        self._yaml_status: QtWidgets.QLabel | None = None
 
         self._layout = QtWidgets.QFormLayout()
         self.setLayout(self._layout)
@@ -42,12 +62,14 @@ class EditPickerWidget(QtWidgets.QGroupBox):
 
         if picker is None:
             self._type_combo.setCurrentIndex(0)
-            self._type_changed(self._type_combo.currentText())
+            self._rebuild_fields(self._type_combo.currentText())
         else:
             name = _picker_type_name(picker)
-            if name in _PICKER_CLASSES:
-                self._type_combo.setCurrentText(name)
-                self._rebuild_fields(type(picker))
+            self._type_combo.setCurrentText(name)
+            self._rebuild_fields(name)
+            if isinstance(picker, CustomPicker):
+                self._yaml_widget.setPlainText(yaml.dump(picker.raw, default_flow_style=False))
+            else:
                 self._populate_fields(picker)
 
         self._updating = False
@@ -56,63 +78,67 @@ class EditPickerWidget(QtWidgets.QGroupBox):
         for i in reversed(range(1, self._layout.rowCount())):
             self._layout.removeRow(i)
         self._field_widgets.clear()
+        self._yaml_widget = None
+        self._yaml_status = None
 
-    def _rebuild_fields(self, cls: type[Picker]):
+    def _rebuild_fields(self, type_name: str):
         self._clear_fields()
-        for field_name, field_info in cls.model_fields.items():
-            if field_name == "class":
-                continue
-            widget = self._make_widget(field_name, field_info)
-            if widget is not None:
-                self._field_widgets[field_name] = widget
-                self._layout.addRow(field_name.replace("_", " ").title(), widget)
+
+        if type_name == _CUSTOM:
+            self._yaml_widget = QtWidgets.QPlainTextEdit()
+            self._yaml_widget.setPlaceholderText("Enter picker YAML here...")
+            self._yaml_widget.textChanged.connect(self._yaml_changed)
+            self._layout.addRow(self._yaml_widget)
+            self._yaml_status = QtWidgets.QLabel()
+            self._layout.addRow(self._yaml_status)
+        else:
+            cls = _PICKER_CLASSES.get(type_name)
+            if cls is None:
+                return
+            for field_name, field_info in cls.model_fields.items():
+                if field_name == "class":
+                    continue
+                widget = self._make_widget(field_name, field_info)
+                if widget is not None:
+                    self._field_widgets[field_name] = widget
+                    self._layout.addRow(field_name.replace("_", " ").title(), widget)
 
     def _populate_fields(self, picker: Picker):
         for field_name, widget in self._field_widgets.items():
-            value = getattr(picker, field_name)
-            self._set_widget_value(widget, value)
+            self._set_widget_value(widget, getattr(picker, field_name))
 
     def _make_widget(self, field_name: str, field_info: FieldInfo) -> QtWidgets.QWidget | None:
         annotation = field_info.annotation
 
-        # Literal -> combobox
         if get_origin(annotation) is Literal:
             combo = QtWidgets.QComboBox()
             combo.addItems([str(a) for a in get_args(annotation)])
             combo.currentTextChanged.connect(self._field_changed)
             return combo
-
-        # str -> line edit
         if annotation is str:
             edit = QtWidgets.QLineEdit()
             if field_info.default is not None and field_info.default is not ...:
                 edit.setPlaceholderText(str(field_info.default))
             edit.textChanged.connect(self._field_changed)
             return edit
-
-        # int -> spinbox
         if annotation is int:
             spin = QtWidgets.QSpinBox()
             spin.setMinimum(-999999)
             spin.setMaximum(999999)
             spin.valueChanged.connect(self._field_changed)
             return spin
-
-        # float -> double spinbox
         if annotation is float:
             spin = QtWidgets.QDoubleSpinBox()
             spin.setMinimum(-999999.0)
             spin.setMaximum(999999.0)
             spin.valueChanged.connect(self._field_changed)
             return spin
-
-        # bool -> checkbox
         if annotation is bool:
             check = QtWidgets.QCheckBox()
             check.checkStateChanged.connect(self._field_changed)
             return check
 
-        return None  # unsupported type — skip
+        return None
 
     def _set_widget_value(self, widget: QtWidgets.QWidget, value):
         if isinstance(widget, QtWidgets.QComboBox):
@@ -138,26 +164,55 @@ class EditPickerWidget(QtWidgets.QGroupBox):
 
     @QtCore.Slot(str)
     def _type_changed(self, type_name: str):
-        cls = _PICKER_CLASSES.get(type_name)
-        if cls is None:
-            return
-        self._rebuild_fields(cls)
-        # Construct a new picker with defaults
+        self._rebuild_fields(type_name)
+
         if not self._updating:
-            try:
-                self._picker = cls()
-                self._populate_fields(self._picker)
+            if type_name == _CUSTOM:
+                # Start with an empty custom picker
+                self._picker = CustomPicker(raw={})
                 self.picker_changed.emit(self._picker)
-            except Exception:
-                pass  # not all fields have defaults; user must fill them in
+            else:
+                cls = _PICKER_CLASSES.get(type_name)
+                if cls is None:
+                    return
+                if isinstance(self._picker, cls):
+                    self._populate_fields(self._picker)
+                    self.picker_changed.emit(self._picker)
+                else:
+                    try:
+                        self._picker = cls()
+                        self._populate_fields(self._picker)
+                        self.picker_changed.emit(self._picker)
+                    except Exception:
+                        self._picker = None  # required fields missing; wait for user input
+
+    @QtCore.Slot()
+    def _yaml_changed(self):
+        if self._updating or self._yaml_widget is None:
+            return
+        try:
+            raw = yaml.safe_load(self._yaml_widget.toPlainText()) or {}
+            self._picker = CustomPicker(raw=raw)
+            self.picker_changed.emit(self._picker)
+            if self._yaml_status is not None:
+                self._yaml_status.setText("✓ Valid")
+                self._yaml_status.setStyleSheet("color: green;")
+        except yaml.YAMLError as e:
+            if self._yaml_status is not None:
+                self._yaml_status.setText(f"✗ Invalid YAML: {e}")
+                self._yaml_status.setStyleSheet("color: red;")
 
     @QtCore.Slot()
     def _field_changed(self):
-        if self._updating or self._picker is None:
+        if self._updating:
+            return
+        type_name = self._type_combo.currentText()
+        cls = _PICKER_CLASSES.get(type_name)
+        if cls is None:
             return
         values = {name: self._get_widget_value(w) for name, w in self._field_widgets.items()}
         try:
-            self._picker = type(self._picker)(**values)
+            self._picker = cls(**values)
             self.picker_changed.emit(self._picker)
         except Exception:
-            pass  # validation error mid-edit — ignore until fields are complete
+            pass
