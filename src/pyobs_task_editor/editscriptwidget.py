@@ -3,6 +3,7 @@ import yaml
 from PySide6 import QtWidgets, QtCore, QtGui
 
 from pyobs.robotic import Task
+from pyobs.robotic.task import Script
 
 
 class EditScriptWidget(QtWidgets.QWidget):
@@ -19,7 +20,7 @@ class EditScriptWidget(QtWidgets.QWidget):
         group = QtWidgets.QGroupBox("Script")
         self.layout().addWidget(group)
 
-        layout = QtWidgets.QFormLayout()
+        layout = QtWidgets.QVBoxLayout()
         group.setLayout(layout)
 
         self.yaml_widget = QtWidgets.QPlainTextEdit()
@@ -32,22 +33,43 @@ class EditScriptWidget(QtWidgets.QWidget):
         self.yaml_widget.textChanged.connect(self._text_changed)
         layout.addWidget(self.yaml_widget)
 
+        self.status_label = QtWidgets.QLabel()
+        layout.addWidget(self.status_label)
+
     @QtCore.Slot(list)
     def set_task(self, task: Task) -> None:
         self._updating = True
         self._task = task
         if task is None or task.script is None:
             self.yaml_widget.clear()
+            self.status_label.clear()
         else:
             with io.StringIO() as buffer:
                 yaml.safe_dump(task.script, buffer)
                 self.yaml_widget.setPlainText(buffer.getvalue())
+            self._validate(task.script)
         self._updating = False
 
     @QtCore.Slot()
     def _text_changed(self) -> None:
-        if not self._updating:
-            with io.StringIO(self.yaml_widget.toPlainText()) as buffer:
-                self._task.script = yaml.safe_load(buffer)
-            self.script_changed.emit(self.yaml_widget.toPlainText())
-            self.task_changed.emit(self._task)
+        if self._updating:
+            return
+        try:
+            raw = yaml.safe_load(self.yaml_widget.toPlainText()) or {}
+        except yaml.YAMLError as e:
+            self.status_label.setText(f"✗ Invalid YAML: {e}")
+            self.status_label.setStyleSheet("color: red;")
+            return
+        self._validate(raw)
+        self._task.script = raw
+        self.script_changed.emit(self.yaml_widget.toPlainText())
+        self.task_changed.emit(self._task)
+
+    def _validate(self, raw: dict):
+        try:
+            Script.model_validate(raw)
+            self.status_label.setText("✓ Valid")
+            self.status_label.setStyleSheet("color: green;")
+        except Exception as e:
+            self.status_label.setText(f"✗ {e}")
+            self.status_label.setStyleSheet("color: red;")
