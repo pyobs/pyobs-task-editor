@@ -1,6 +1,7 @@
 from urllib.parse import urljoin
 import requests
 from PySide6 import QtWidgets, QtCore
+import qtawesome as qa
 
 from pyobs_task_editor.listwithbuttonswidget import ListWithButtonsWidget
 
@@ -60,6 +61,9 @@ class ConnectionsDialog(QtWidgets.QDialog):
         buttons.setStandardButtons(
             QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
+        self.connect_button = buttons.addButton("Connect", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole)
+        self.connect_button.setIcon(qa.icon("mdi6.cast-connected"))
+        self.connect_button.clicked.connect(self._connect)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -129,3 +133,12 @@ class ConnectionsDialog(QtWidgets.QDialog):
             if conn.name == selected:
                 row = i
         self.list_widget.setCurrentRow(row)
+
+    @QtCore.Slot()
+    def _connect(self) -> None:
+        item = self.list_widget.currentItem()
+        if item is None:
+            return
+        conn = item.data(QtCore.Qt.UserRole)
+        self.selected_connection = conn
+        self.accept()

@@ -219,6 +219,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.config = dialog.config
             self._write_config()
             self._rebuild_connection_menu()
+            if dialog.selected_connection is not None:
+                self._connect(dialog.selected_connection)
 
     @QtCore.Slot(Connection)
     def _connect(self, conn):
