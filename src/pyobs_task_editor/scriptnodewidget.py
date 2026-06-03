@@ -4,6 +4,7 @@ import inspect
 import types
 import yaml
 from typing import Any, get_origin, get_args, Literal, Union
+
 from pydantic import BaseModel
 from PySide6 import QtWidgets, QtCore
 import qtawesome as qa
@@ -11,7 +12,6 @@ import qtawesome as qa
 from pyobs.robotic.task import Script
 import pyobs.robotic.scripts as scripts_module
 
-CONTAINER_SCRIPTS = {"SequentialRunner", "ParallelRunner"}
 IGNORED_FIELDS = {"exptime_done", "class"}
 
 
@@ -31,6 +31,24 @@ def _is_optional(annotation) -> tuple[bool, Any]:
         if len(args) == 1:
             return True, args[0]
     return False, annotation
+
+
+def _script_list_fields(cls: type) -> list[str]:
+    """Return names of fields that are Script, Script | None, or list[Script]."""
+    result = []
+    for field_name, field_info in cls.model_fields.items():
+        _, inner = _is_optional(field_info.annotation)
+        origin = get_origin(inner)
+        args = get_args(inner)
+        if origin is list and len(args) == 1 and inspect.isclass(args[0]) and issubclass(args[0], Script):
+            result.append(field_name)
+        elif inspect.isclass(inner) and issubclass(inner, Script):
+            result.append(field_name)
+    return result
+
+
+def _is_container(cls: type) -> bool:
+    return len(_script_list_fields(cls)) > 0
 
 
 def _make_widget(annotation, value, on_change, optional: bool = False) -> QtWidgets.QWidget | None:
@@ -120,6 +138,11 @@ def _make_widget(annotation, value, on_change, optional: bool = False) -> QtWidg
         container._spinboxes = [row.itemAt(i).widget() for i in range(row.count())]
         return container
 
+    # Script subclass → nested ScriptNodeWidget
+    if inspect.isclass(annotation) and issubclass(annotation, Script):
+        return ScriptNodeWidget(value or {}, depth=0, on_change=on_change)
+
+    # list[Script subclass] → handled as children in ScriptNodeWidget, not here
     # list[BaseModel] → vertical list with add/remove
     if origin is list and len(args) == 1 and inspect.isclass(args[0]) and issubclass(args[0], BaseModel):
         return _ListOfModelsWidget(args[0], value or [], on_change)
@@ -128,8 +151,20 @@ def _make_widget(annotation, value, on_change, optional: bool = False) -> QtWidg
     if inspect.isclass(annotation) and issubclass(annotation, BaseModel):
         return _NestedModelWidget(annotation, value or {}, on_change)
 
-    # dict[str, Any] or plain dict → YAML text area
-    if annotation is dict or (origin is dict):
+    # list[primitives or union of primitives] → list with add/remove
+    if origin is list and len(args) == 1:
+        origin_item = get_origin(args[0])
+        if origin_item is Union or origin_item is types.UnionType:
+            return _ListOfPrimitivesWidget(str, value or [], on_change)
+        elif args[0] in (str, int, float):
+            return _ListOfPrimitivesWidget(args[0], value or [], on_change)
+
+    # list[primitives] → vertical list with add/remove
+    if origin is list and len(args) == 1 and args[0] in (str, int, float):
+        return _ListOfPrimitivesWidget(args[0], value or [], on_change)
+
+    # dict → YAML text area
+    if annotation is dict or origin is dict:
         w = QtWidgets.QPlainTextEdit()
         w.setMaximumHeight(100)
         w.setPlaceholderText("YAML...")
@@ -147,9 +182,6 @@ def _get_widget_value(widget: QtWidgets.QWidget, annotation, optional: bool = Fa
     if is_opt:
         return _get_widget_value(widget, inner, optional=True)
 
-    origin = get_origin(annotation)
-    args = get_args(annotation)
-
     if isinstance(widget, QtWidgets.QComboBox):
         return widget.currentText()
     if isinstance(widget, QtWidgets.QCheckBox):
@@ -163,6 +195,8 @@ def _get_widget_value(widget: QtWidgets.QWidget, annotation, optional: bool = Fa
         return v if v else None
     if hasattr(widget, "_spinboxes"):
         return [sb.value() for sb in widget._spinboxes]
+    if isinstance(widget, ScriptNodeWidget):
+        return widget.get_data()
     if isinstance(widget, (_ListOfModelsWidget, _NestedModelWidget)):
         return widget.get_data()
     if isinstance(widget, QtWidgets.QPlainTextEdit):
@@ -170,6 +204,8 @@ def _get_widget_value(widget: QtWidgets.QWidget, annotation, optional: bool = Fa
             return yaml.safe_load(widget.toPlainText()) or {}
         except yaml.YAMLError:
             return {}
+    if isinstance(widget, _ListOfPrimitivesWidget):
+        return widget.get_data()
     return None
 
 
@@ -203,6 +239,86 @@ class _NestedModelWidget(QtWidgets.QGroupBox):
             name: _get_widget_value(w, self._cls.model_fields[name].annotation)
             for name, w in self._field_widgets.items()
         }
+
+
+class _ListOfPrimitivesWidget(QtWidgets.QWidget):
+    def __init__(self, item_type: type, data: list, on_change):
+        super().__init__()
+        self._item_type = item_type
+        self._on_change = on_change
+        self._item_widgets: list[QtWidgets.QWidget] = []
+
+        self._layout = QtWidgets.QVBoxLayout()
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(self._layout)
+
+        for value in data:
+            self._add_item(value)
+
+        add_btn = QtWidgets.QToolButton()
+        add_btn.setIcon(qa.icon("fa5s.plus"))
+        add_btn.setText("Add")
+        add_btn.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        add_btn.clicked.connect(lambda: self._add_item_default())
+        self._layout.addWidget(add_btn)
+
+    def _make_item_widget(self, value=None) -> QtWidgets.QWidget:
+        if self._item_type is int:
+            w = QtWidgets.QSpinBox()
+            w.setMinimum(-999999)
+            w.setMaximum(999999)
+            if value is not None:
+                w.setValue(int(value))
+            w.valueChanged.connect(self._on_change)
+        elif self._item_type is float:
+            w = QtWidgets.QDoubleSpinBox()
+            w.setMinimum(-999999.0)
+            w.setMaximum(999999.0)
+            if value is not None:
+                w.setValue(float(value))
+            w.valueChanged.connect(self._on_change)
+        else:
+            w = QtWidgets.QLineEdit()
+            w.setText(str(value) if value is not None else "")
+            w.textChanged.connect(self._on_change)
+        return w
+
+    def _add_item(self, value=None):
+        item_widget = self._make_item_widget(value)
+
+        wrapper = QtWidgets.QWidget()
+        wrapper_layout = QtWidgets.QHBoxLayout()
+        wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        wrapper.setLayout(wrapper_layout)
+        wrapper_layout.addWidget(item_widget, stretch=1)
+
+        remove_btn = QtWidgets.QToolButton()
+        remove_btn.setIcon(qa.icon("fa5s.minus"))
+        remove_btn.clicked.connect(lambda: self._remove_item(wrapper, item_widget))
+        wrapper_layout.addWidget(remove_btn)
+
+        self._layout.insertWidget(self._layout.count() - 1, wrapper)
+        self._item_widgets.append(item_widget)
+
+    def _add_item_default(self):
+        self._add_item()
+        self._on_change()
+
+    def _remove_item(self, wrapper: QtWidgets.QWidget, item_widget: QtWidgets.QWidget):
+        self._item_widgets.remove(item_widget)
+        wrapper.deleteLater()
+        self._on_change()
+
+    def get_data(self) -> list:
+        result = []
+        for w in self._item_widgets:
+            if isinstance(w, QtWidgets.QSpinBox):
+                result.append(w.value())
+            elif isinstance(w, QtWidgets.QDoubleSpinBox):
+                result.append(w.value())
+            else:
+                result.append(w.text())
+        return result
 
 
 class _ListOfModelsWidget(QtWidgets.QWidget):
@@ -266,13 +382,15 @@ class _ListOfModelsWidget(QtWidgets.QWidget):
 class ScriptNodeWidget(QtWidgets.QWidget):
     changed = QtCore.Signal()
 
-    def __init__(self, data: dict[str, Any], depth: int = 0):
+    def __init__(self, data: dict[str, Any], depth: int = 0, on_change=None):
         super().__init__()
         self._data = data
         self._depth = depth
-        self._child_widgets: list[ScriptNodeWidget] = []
+        self._child_widgets: list[tuple[str, ScriptNodeWidget]] = []  # (field_name, widget)
         self._field_widgets: dict[str, QtWidgets.QWidget] = {}
-        self._yaml_widget: QtWidgets.QPlainTextEdit | None = None
+
+        if on_change is not None:
+            self.changed.connect(on_change)
 
         outer = QtWidgets.QVBoxLayout()
         outer.setContentsMargins(depth * 16, 0, 0, 0)
@@ -315,9 +433,6 @@ class ScriptNodeWidget(QtWidgets.QWidget):
             item = self._children_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-        if self._yaml_widget is not None:
-            self._yaml_widget.deleteLater()
-            self._yaml_widget = None
 
         type_name = self._type_combo.currentText()
         classes = _get_script_classes()
@@ -325,13 +440,15 @@ class ScriptNodeWidget(QtWidgets.QWidget):
         if cls is None:
             return
 
-        self._children_group.setVisible(type_name in CONTAINER_SCRIPTS)
+        script_fields = _script_list_fields(cls)
+        is_container = _is_container(cls)
+        self._children_group.setVisible(is_container)
 
         for field_name, field_info in cls.model_fields.items():
             if field_name in IGNORED_FIELDS:
                 continue
-            if field_name == "scripts" and type_name in CONTAINER_SCRIPTS:
-                continue
+            if field_name in script_fields:
+                continue  # handled as children below
 
             value = data.get(field_name)
             widget = _make_widget(field_info.annotation, value, self._field_changed)
@@ -339,16 +456,32 @@ class ScriptNodeWidget(QtWidgets.QWidget):
                 self._field_widgets[field_name] = widget
                 self._form_layout.addRow(field_name.replace("_", " ").title(), widget)
 
-        if type_name in CONTAINER_SCRIPTS:
-            for child_data in data.get("scripts", []):
-                self._add_child(child_data)
+        if is_container:
+            for field_name in script_fields:
+                field_info = cls.model_fields[field_name]
+                _, inner = _is_optional(field_info.annotation)
+                origin = get_origin(inner)
 
-            add_btn = QtWidgets.QToolButton()
-            add_btn.setIcon(qa.icon("fa5s.plus"))
-            add_btn.setText("Add script")
-            add_btn.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-            add_btn.clicked.connect(self._add_child_default)
-            self._children_layout.addWidget(add_btn)
+                # Section label if more than one script field
+                if len(script_fields) > 1:
+                    label = QtWidgets.QLabel(f"<b>{field_name.replace('_', ' ').title()}</b>")
+                    self._children_layout.addWidget(label)
+
+                if origin is list:
+                    # list[Script] — multiple children with add button
+                    for child_data in data.get(field_name) or []:
+                        self._add_child(child_data, field_name)
+
+                    add_btn = QtWidgets.QToolButton()
+                    add_btn.setIcon(qa.icon("fa5s.plus"))
+                    add_btn.setText(f"Add {field_name.replace('_', ' ')}")
+                    add_btn.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+                    add_btn.clicked.connect(lambda checked=False, fn=field_name: self._add_child_default(fn))
+                    self._children_layout.addWidget(add_btn)
+                else:
+                    # Single Script (or Script | None) — always show one child
+                    child_data = data.get(field_name) or {}
+                    self._add_child(child_data, field_name)
 
     @QtCore.Slot()
     def _field_changed(self):
@@ -360,35 +493,32 @@ class ScriptNodeWidget(QtWidgets.QWidget):
         self._data = {"class": f"{cls.__module__}.{type_name}"}
         for field_name, widget in self._field_widgets.items():
             self._data[field_name] = _get_widget_value(widget, cls.model_fields[field_name].annotation)
-        if type_name in CONTAINER_SCRIPTS:
-            self._data["scripts"] = [w.get_data() for w in self._child_widgets]
-        self.changed.emit()
-
-    @QtCore.Slot()
-    def _yaml_changed(self):
-        if self._yaml_widget is None:
-            return
-        try:
-            self._data = yaml.safe_load(self._yaml_widget.toPlainText()) or {}
-        except yaml.YAMLError:
-            pass
+        self._collect_children(cls)
         self.changed.emit()
 
     @QtCore.Slot(str)
     def _type_changed(self, type_name: str):
+        from pydantic_core import PydanticUndefined
+
         classes = _get_script_classes()
         cls = classes.get(type_name)
         if cls is None:
             return
         self._data = {"class": f"{cls.__module__}.{type_name}"}
         for field_name, field_info in cls.model_fields.items():
-            if field_info.default is not None and field_info.default is not ...:
+            if (
+                field_info.default is not None
+                and field_info.default is not ...
+                and field_info.default is not PydanticUndefined
+            ):
                 self._data[field_name] = field_info.default
+            elif field_info.default_factory is not None:
+                self._data[field_name] = field_info.default_factory()
         self._rebuild(self._data)
         self.changed.emit()
 
-    def _add_child(self, child_data: dict | None = None):
-        if child_data is None:
+    def _add_child(self, child_data: dict | None = None, field_name: str = "scripts"):
+        if child_data is None or child_data == {}:
             classes = _get_script_classes()
             first = sorted(classes.keys())[0]
             cls = classes[first]
@@ -403,27 +533,50 @@ class ScriptNodeWidget(QtWidgets.QWidget):
         wrapper.setLayout(wrapper_layout)
         wrapper_layout.addWidget(child_widget, stretch=1)
 
-        remove_btn = QtWidgets.QToolButton()
-        remove_btn.setIcon(qa.icon("fa5s.minus"))
-        remove_btn.clicked.connect(lambda: self._remove_child(wrapper, child_widget))
-        wrapper_layout.addWidget(remove_btn, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+        # Only show remove button for list fields (single Script fields are always present)
+        type_name = self._type_combo.currentText()
+        classes = _get_script_classes()
+        cls = classes.get(type_name)
+        if cls is not None:
+            field_info = cls.model_fields.get(field_name)
+            if field_info is not None:
+                _, inner = _is_optional(field_info.annotation)
+                if get_origin(inner) is list:
+                    remove_btn = QtWidgets.QToolButton()
+                    remove_btn.setIcon(qa.icon("fa5s.minus"))
+                    remove_btn.clicked.connect(lambda: self._remove_child(wrapper, child_widget))
+                    wrapper_layout.addWidget(remove_btn, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 
-        self._children_layout.insertWidget(self._children_layout.count() - 1, wrapper)
-        self._child_widgets.append(child_widget)
+        # Insert before the add button for this field, or at end
+        self._children_layout.addWidget(wrapper)
+        self._child_widgets.append((field_name, child_widget))
 
-    @QtCore.Slot()
-    def _add_child_default(self):
-        self._add_child()
+    def _add_child_default(self, field_name: str):
+        self._add_child(None, field_name)
         self._child_changed()
 
     def _remove_child(self, wrapper: QtWidgets.QWidget, child_widget: ScriptNodeWidget):
-        if child_widget in self._child_widgets:
-            self._child_widgets.remove(child_widget)
+        self._child_widgets = [(fn, w) for fn, w in self._child_widgets if w is not child_widget]
         wrapper.deleteLater()
         self._child_changed()
 
+    def _collect_children(self, cls: type):
+        for field_name in _script_list_fields(cls):
+            field_info = cls.model_fields[field_name]
+            _, inner = _is_optional(field_info.annotation)
+            children = [w.get_data() for fn, w in self._child_widgets if fn == field_name]
+            if get_origin(inner) is list:
+                self._data[field_name] = children
+            else:
+                self._data[field_name] = children[0] if children else {}
+
+    @QtCore.Slot()
     def _child_changed(self):
-        self._data["scripts"] = [w.get_data() for w in self._child_widgets]
+        type_name = self._type_combo.currentText()
+        classes = _get_script_classes()
+        cls = classes.get(type_name)
+        if cls is not None:
+            self._collect_children(cls)
         self.changed.emit()
 
     def get_data(self) -> dict[str, Any]:
