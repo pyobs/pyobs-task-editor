@@ -7,7 +7,7 @@ from pyobs.robotic.scheduler.targets import Target, SiderealTarget
 
 try:
     from pyobs.robotic.scheduler.targets.dynamictarget import DynamicTarget
-    from pyobs.robotic.scheduler.targets.picker import CsvPicker
+    from pyobs.robotic.scheduler.targets.picker.csvpicker import CsvPicker
 
     HAS_DYNAMIC_TARGET = True
 except ImportError:
@@ -53,27 +53,26 @@ class EditTargetWidget(QtWidgets.QWidget):
         self._updating = True
         self._task = task
 
-        if task is None or task.target is None:
+        if task is None or task.static_target is None:
             self.target_type.setCurrentText("None")
             self._rebuild_fields("None")
 
-        elif HAS_DYNAMIC_TARGET and isinstance(task.target, DynamicTarget):
+        elif HAS_DYNAMIC_TARGET and isinstance(task.static_target, DynamicTarget):
             self.target_type.setCurrentText("Dynamic")
             self._rebuild_fields("Dynamic")
-            self.picker_widget.set_picker(task.target.picker)
+            self.picker_widget.set_picker(task.static_target.picker)
 
-        elif isinstance(task.target, SiderealTarget):
+        elif isinstance(task.static_target, SiderealTarget):
             self.target_type.setCurrentText("Sidereal")
             self._rebuild_fields("Sidereal")
-            self.target_name.setText(task.target.name)
-            coords = SkyCoord(ra=task.target.ra, dec=task.target.dec, frame="icrs", unit="deg")
+            self.target_name.setText(task.static_target.name)
+            coords = SkyCoord(ra=task.static_target.ra, dec=task.static_target.dec, frame="icrs", unit="deg")
             self.ra.setText(coords.ra.to_string(sep=" ", pad=True, unit="hourangle"))
             self.dec.setText(coords.dec.to_string(sep=" ", pad=True, alwayssign=True))
 
         self._updating = False
 
     def _rebuild_fields(self, typ: str):
-        """Rebuild form rows below the Type combobox for the given type."""
         for i in reversed(range(1, self.form_layout.rowCount())):
             self.form_layout.removeRow(i)
 
@@ -106,21 +105,23 @@ class EditTargetWidget(QtWidgets.QWidget):
         self._rebuild_fields(typ)
 
         if typ == "None":
-            self._task.target = None
+            self._task.static_target = None
         elif typ == "Sidereal":
-            if not isinstance(self._task.target, SiderealTarget):
-                self._task.target = SiderealTarget(name="unknown", ra=0, dec=0)
-            self.target_name.setText(self._task.target.name)
-            coords = SkyCoord(ra=self._task.target.ra, dec=self._task.target.dec, frame="icrs", unit="deg")
+            if not isinstance(self._task.static_target, SiderealTarget):
+                self._task.static_target = SiderealTarget(name="unknown", ra=0, dec=0)
+            self.target_name.setText(self._task.static_target.name)
+            coords = SkyCoord(
+                ra=self._task.static_target.ra, dec=self._task.static_target.dec, frame="icrs", unit="deg"
+            )
             self.ra.setText(coords.ra.to_string(sep=" ", pad=True, unit="hourangle"))
             self.dec.setText(coords.dec.to_string(sep=" ", pad=True, alwayssign=True))
         elif typ == "Dynamic" and HAS_DYNAMIC_TARGET:
-            if not isinstance(self._task.target, DynamicTarget):
-                self._task.target = DynamicTarget(picker=CsvPicker(csv="targets.csv"))
-            self.picker_widget.set_picker(self._task.target.picker)
+            if not isinstance(self._task.static_target, DynamicTarget):
+                self._task.static_target = DynamicTarget(picker=CsvPicker(csv="targets.csv"))
+            self.picker_widget.set_picker(self._task.static_target.picker)
 
         if not self._updating:
-            self.target_changed.emit(self._task.target)
+            self.target_changed.emit(self._task.static_target)
             self.task_changed.emit(self._task)
 
     @QtCore.Slot()
@@ -128,7 +129,7 @@ class EditTargetWidget(QtWidgets.QWidget):
         if self._updating or self._task is None:
             return
 
-        target = self._task.target
+        target = self._task.static_target
         target.name = self.target_name.text()
         try:
             coord = SkyCoord(ra=self.ra.text(), dec=self.dec.text(), unit=(u.hourangle, u.deg), frame="icrs")
@@ -145,6 +146,6 @@ class EditTargetWidget(QtWidgets.QWidget):
     def _update_dynamic_target(self, picker):
         if self._updating or self._task is None:
             return
-        self._task.target.picker = picker
-        self.target_changed.emit(self._task.target)
+        self._task.static_target.picker = picker
+        self.target_changed.emit(self._task.static_target)
         self.task_changed.emit(self._task)
