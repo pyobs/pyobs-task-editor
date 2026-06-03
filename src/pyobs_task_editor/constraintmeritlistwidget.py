@@ -105,7 +105,13 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
 
     @QtCore.Slot()
     def remove_item(self):
-        pass
+        item = self.list_widget.currentItem()
+        if item is None:
+            return
+        obj = item.data(QtCore.Qt.UserRole)
+        getattr(self._task, self._name).remove(obj)
+        self.update_list()
+        self.task_changed.emit()
 
     @QtCore.Slot(QtWidgets.QListWidgetItem)
     def _item_selected(self, item):
