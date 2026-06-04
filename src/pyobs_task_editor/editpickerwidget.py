@@ -1,4 +1,3 @@
-from __future__ import annotations
 from typing import Any, get_origin, get_args, Literal
 from pydantic.fields import FieldInfo
 import yaml
