@@ -1,6 +1,10 @@
 import io
 import yaml
 from PySide6 import QtWidgets, QtCore, QtGui
+import inspect
+import qtawesome as qa
+import pyobs.robotic.scripts as scripts_module
+from pydantic_core import PydanticUndefined
 
 from pyobs.robotic import Task
 from pyobs.robotic.task import Script
@@ -22,6 +26,16 @@ class EditScriptWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout()
         group.setLayout(layout)
+
+        toolbar = QtWidgets.QToolBar()
+        toolbar.setIconSize(QtCore.QSize(16, 16))
+        toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        spacer = QtWidgets.QWidget()
+        spacer.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
+        toolbar.addWidget(spacer)
+        action = toolbar.addAction(qa.icon("mdi6.file-import-outline"), "Insert script template")
+        action.triggered.connect(self._insert_template)
+        layout.addWidget(toolbar)
 
         self.yaml_widget = QtWidgets.QPlainTextEdit()
         self.yaml_widget.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
@@ -73,3 +87,53 @@ class EditScriptWidget(QtWidgets.QWidget):
         except Exception as e:
             self.status_label.setText(f"✗ {e}")
             self.status_label.setStyleSheet("color: red;")
+
+    def _get_script_classes(self) -> dict[str, type]:
+        from pyobs.robotic.task import Script
+
+        return {
+            name: obj
+            for name, obj in inspect.getmembers(scripts_module)
+            if inspect.isclass(obj) and issubclass(obj, Script) and name != "Script"
+        }
+
+    def _build_template(self, cls: type) -> dict:
+        from pyobs.robotic.task import Script
+        import typing
+
+        result = {"class": f"{cls.__module__}.{cls.__name__}"}
+        for field_name, field_info in cls.model_fields.items():
+            if field_name in ("class", "exptime_done"):
+                continue
+            if field_info.default is not PydanticUndefined:
+                result[field_name] = field_info.default
+            elif field_info.default_factory is not None:
+                val = field_info.default_factory()
+                # For script list fields, insert one empty child template
+                ann = field_info.annotation
+                origin = typing.get_origin(ann)
+                args = typing.get_args(ann)
+                if origin is list and len(args) == 1 and inspect.isclass(args[0]) and issubclass(args[0], Script):
+                    first_cls = list(self._get_script_classes().values())[0]
+                    val = [self._build_template(first_cls)]
+                result[field_name] = val
+            else:
+                # Required field — insert a placeholder comment
+                result[field_name] = f"<{field_name}>"
+        return result
+
+    @QtCore.Slot()
+    def _insert_template(self):
+        classes = self._get_script_classes()
+        name, ok = QtWidgets.QInputDialog.getItem(
+            self, "Insert template", "Script type:", sorted(classes.keys()), editable=False
+        )
+        if not ok:
+            return
+        template = self._build_template(classes[name])
+        snippet = yaml.dump(template, default_flow_style=False)
+        # Replace content if empty, otherwise insert at cursor
+        if not self.yaml_widget.toPlainText().strip():
+            self.yaml_widget.setPlainText(snippet)
+        else:
+            self.yaml_widget.insertPlainText("\n" + snippet)
