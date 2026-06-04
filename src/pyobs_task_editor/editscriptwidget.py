@@ -5,6 +5,9 @@ import inspect
 import qtawesome as qa
 import pyobs.robotic.scripts as scripts_module
 from pydantic_core import PydanticUndefined
+import pkgutil
+import importlib
+import pyobs.robotic.scripts as scripts_module
 
 from pyobs.robotic import Task
 from pyobs.robotic.task import Script
@@ -34,8 +37,9 @@ class EditScriptWidget(QtWidgets.QWidget):
         spacer = QtWidgets.QWidget()
         spacer.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
         toolbar.addWidget(spacer)
-        action = toolbar.addAction(qa.icon("mdi6.file-import-outline"), "Insert script template")
-        action.triggered.connect(self._insert_template)
+        action = toolbar.addAction(qa.icon("mdi6.file-import-outline"), "Insert template")
+        action.triggered.connect(self._show_template_menu)
+        self._template_btn = toolbar.widgetForAction(action)
         layout.addWidget(toolbar)
 
         self.yaml_widget = YamlEditor()
@@ -89,15 +93,6 @@ class EditScriptWidget(QtWidgets.QWidget):
             self.status_label.setText(f"✗ {e}")
             self.status_label.setStyleSheet("color: red;")
 
-    def _get_script_classes(self) -> dict[str, type]:
-        from pyobs.robotic.task import Script
-
-        return {
-            name: obj
-            for name, obj in inspect.getmembers(scripts_module)
-            if inspect.isclass(obj) and issubclass(obj, Script) and name != "Script"
-        }
-
     def _build_template(self, cls: type) -> dict:
         from pyobs.robotic.task import Script
         import typing
@@ -123,17 +118,72 @@ class EditScriptWidget(QtWidgets.QWidget):
                 result[field_name] = f"<{field_name}>"
         return result
 
+    def _get_script_tree(self) -> dict:
+        """Recursively discover all Script subclasses, preserving package structure."""
+        from pyobs.robotic.task import Script
+
+        def _scan(package) -> dict:
+            results = {}
+            for _, name, ispkg in pkgutil.iter_modules(package.__path__):
+                full_name = f"{package.__name__}.{name}"
+                try:
+                    mod = importlib.import_module(full_name)
+                except Exception:
+                    continue
+                if ispkg:
+                    sub = _scan(mod)
+                    if sub:
+                        results[name] = sub
+                else:
+                    classes = {
+                        n: o
+                        for n, o in inspect.getmembers(mod)
+                        if inspect.isclass(o)
+                        and issubclass(o, Script)
+                        and o is not Script
+                        and o.__module__ == full_name
+                    }
+                    if classes:
+                        results[name] = classes
+            return results
+
+        return _scan(scripts_module)
+
+    def _build_script_menu(self, menu: QtWidgets.QMenu, tree: dict):
+        """Recursively populate a QMenu from the script tree."""
+        for name, value in sorted(tree.items()):
+            if isinstance(value, dict) and all(isinstance(v, type) for v in value.values()):
+                # Leaf: dict of class name → class
+                for class_name, cls in sorted(value.items()):
+                    action = menu.addAction(class_name)
+                    action.triggered.connect(lambda checked=False, c=cls: self._insert_template(c))
+            else:
+                # Subpackage: recurse into a submenu
+                submenu = menu.addMenu(name)
+                self._build_script_menu(submenu, value)
+
     @QtCore.Slot()
-    def _insert_template(self):
-        classes = self._get_script_classes()
-        name, ok = QtWidgets.QInputDialog.getItem(
-            self, "Insert template", "Script type:", sorted(classes.keys()), editable=False
-        )
-        if not ok:
-            return
-        template = self._build_template(classes[name])
+    def _show_template_menu(self):
+        tree = self._get_script_tree()
+        menu = QtWidgets.QMenu(self)
+        self._build_script_menu(menu, tree)
+        pos = self._template_btn.mapToGlobal(self._template_btn.rect().bottomLeft())
+        menu.exec(pos)
+
+    def _insert_template(self, cls: type):
+        from pydantic_core import PydanticUndefined
+
+        template = {"class": f"{cls.__module__}.{cls.__name__}"}
+        for field_name, field_info in cls.model_fields.items():
+            if field_name in ("class", "exptime_done"):
+                continue
+            if field_info.default is not PydanticUndefined:
+                template[field_name] = field_info.default
+            elif field_info.default_factory is not None:
+                template[field_name] = field_info.default_factory()
+            else:
+                template[field_name] = f"<{field_name}>"
         snippet = yaml.dump(template, default_flow_style=False)
-        # Replace content if empty, otherwise insert at cursor
         if not self.yaml_widget.toPlainText().strip():
             self.yaml_widget.setPlainText(snippet)
         else:
