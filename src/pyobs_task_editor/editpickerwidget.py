@@ -1,12 +1,11 @@
 from __future__ import annotations
-
 from typing import Any, get_origin, get_args, Literal
 from pydantic.fields import FieldInfo
-
 import yaml
 from PySide6 import QtWidgets, QtCore
-
 from pyobs.robotic.scheduler.targets.picker import Picker, CsvPicker
+
+from pyobs_task_editor.yamleditor import YamlEditor
 
 
 class CustomPicker(Picker):
@@ -85,7 +84,7 @@ class EditPickerWidget(QtWidgets.QGroupBox):
         self._clear_fields()
 
         if type_name == _CUSTOM:
-            self._yaml_widget = QtWidgets.QPlainTextEdit()
+            self._yaml_widget = YamlEditor()
             self._yaml_widget.setPlaceholderText("Enter picker YAML here...")
             self._yaml_widget.textChanged.connect(self._yaml_changed)
             self._layout.addRow(self._yaml_widget)

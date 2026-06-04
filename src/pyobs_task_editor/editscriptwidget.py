@@ -8,6 +8,7 @@ from pydantic_core import PydanticUndefined
 
 from pyobs.robotic import Task
 from pyobs.robotic.task import Script
+from pyobs_task_editor.yamleditor import YamlEditor
 
 
 class EditScriptWidget(QtWidgets.QWidget):
@@ -37,7 +38,7 @@ class EditScriptWidget(QtWidgets.QWidget):
         action.triggered.connect(self._insert_template)
         layout.addWidget(toolbar)
 
-        self.yaml_widget = QtWidgets.QPlainTextEdit()
+        self.yaml_widget = YamlEditor()
         self.yaml_widget.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
         self.yaml_widget.setWordWrapMode(QtGui.QTextOption.WrapMode.NoWrap)
         self.yaml_widget.setMinimumHeight(200)
