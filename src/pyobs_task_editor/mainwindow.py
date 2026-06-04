@@ -66,7 +66,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.backend: Backend | None = None
         self._user: User | None = None
 
-        self.resize(800, 600)
+        self.resize(1000, 700)
         self.setWindowTitle("pyobs task editor")
 
         toolbar = QtWidgets.QToolBar("Main ToolBar")

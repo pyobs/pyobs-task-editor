@@ -10,6 +10,7 @@ dependencies = [
     "pyobs>=0.1",
     "pyobs-core>=1.46.0",
     "pyside6>=6.10.2",
+    "qt-material>=2.17",
     "qtawesome>=1.4.2",
     "requests>=2.32.5",
 ]
