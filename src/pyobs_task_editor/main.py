@@ -8,7 +8,7 @@ from .mainwindow import MainWindow
 def main():
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()
-    apply_stylesheet(app, theme="dark_blue.xml")
+    # apply_stylesheet(app, theme="dark_blue.xml")
     window.show()
     app.exec()
 

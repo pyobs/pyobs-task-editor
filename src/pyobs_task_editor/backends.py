@@ -22,14 +22,25 @@ class Project(pydantic.BaseModel):
     users: list[str] = pydantic.Field(default=[])
 
 
+def _make_json_safe(obj):
+    """Recursively convert non-JSON-serializable types to JSON-safe equivalents."""
+    if isinstance(obj, Time):
+        return obj.isot
+    if isinstance(obj, dict):
+        return {k: _make_json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_make_json_safe(v) for v in obj]
+    return obj
+
+
 def _serialize_task(task: Task) -> dict:
     """Serialize a Task, working around Pydantic v2's behaviour of dropping
     subclass fields when serializing polymorphic types as their base class."""
-    data = task.model_dump(mode="json")
-    data["constraints"] = [c.model_dump(mode="json") for c in task.constraints]
-    data["merits"] = [m.model_dump(mode="json") for m in task.merits]
-    if task.target is not None:
-        data["target"] = task.target.model_dump(mode="json")
+    data = _make_json_safe(task.model_dump())
+    data["constraints"] = [_make_json_safe(c.model_dump()) for c in task.constraints]
+    data["merits"] = [_make_json_safe(m.model_dump()) for m in task.merits]
+    if task.static_target is not None:
+        data["target"] = _make_json_safe(task.static_target.model_dump())
     return data
 
 

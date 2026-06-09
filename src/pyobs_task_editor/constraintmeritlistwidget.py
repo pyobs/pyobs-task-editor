@@ -1,15 +1,14 @@
-import datetime
 import functools
+import inspect
 
-from astropy.time import Time
-from typing import cast, get_origin, Literal, get_args
+from typing import cast, get_origin
 
 from PySide6 import QtWidgets, QtCore
 import qtawesome as qa
 from pyobs.robotic import Task
-import inspect
 
 from pyobs_task_editor.comboboxdialog import ComboBoxDialog
+from pyobs_task_editor.modelwidgets import _make_widget, _get_widget_value
 
 IGNORED_FIELDS = {"cost", "target_dependent"}
 
@@ -24,6 +23,8 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
         self._task: Task | None = None
         self._module = module
         self._name = name
+        self._field_widgets: dict[str, QtWidgets.QWidget] = {}
+        self._current_obj = None
 
         self.setTitle(title)
 
@@ -90,6 +91,8 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
         if self._task is None:
             return
 
+        from pydantic_core import PydanticUndefined
+
         existing = [self.list_widget.item(row).text() for row in range(self.list_widget.count())]
         options = [
             name for name, obj in inspect.getmembers(self._module) if inspect.isclass(obj) and name not in existing
@@ -98,7 +101,16 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
 
         dialog = ComboBoxDialog("Select type", options)
         if dialog.exec_() == QtWidgets.QDialog.DialogCode.Accepted:
-            obj = getattr(self._module, dialog.option)()
+            cls = getattr(self._module, dialog.option)
+            kwargs = {}
+            for field_name, field_info in cls.model_fields.items():
+                if field_info.default is not PydanticUndefined:
+                    continue
+                if field_info.default_factory is not None:
+                    kwargs[field_name] = field_info.default_factory()
+                elif get_origin(field_info.annotation) is list:
+                    kwargs[field_name] = []
+            obj = cls(**kwargs)
             getattr(self._task, self._name).append(obj)
             self.update_list(dialog.option)
             self.task_changed.emit()
@@ -119,49 +131,46 @@ class ConstraintMeritListWidget(QtWidgets.QGroupBox):
         while layout.rowCount() > 0:
             layout.removeRow(0)
 
+        self._field_widgets.clear()
+        self._current_obj = None
+
         if item is None:
             return
 
         obj = item.data(QtCore.Qt.UserRole)
+        self._current_obj = obj
+
         for name, info in obj.model_fields.items():
             if name in IGNORED_FIELDS:
                 continue
-
-            if info.annotation in [float, int]:
-                widget = QtWidgets.QDoubleSpinBox() if info.annotation is float else QtWidgets.QSpinBox()
-                for meta in info.metadata:
-                    if hasattr(meta, "ge"):
-                        widget.setMinimum(meta.ge)
-                    if hasattr(meta, "le"):
-                        widget.setMaximum(meta.le)
+            value = getattr(obj, name)
+            widget = _make_widget(info.annotation, value, functools.partial(self._value_changed, obj, name))
+            if widget is not None:
+                self._field_widgets[name] = widget
+                # Apply ge/le metadata to spinboxes
+                if isinstance(widget, (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox)):
+                    for meta in info.metadata:
+                        if hasattr(meta, "ge"):
+                            widget.setMinimum(meta.ge)
+                        if hasattr(meta, "le"):
+                            widget.setMaximum(meta.le)
                     if (
                         isinstance(widget, QtWidgets.QDoubleSpinBox)
                         and info.json_schema_extra is not None
                         and "decimals" in info.json_schema_extra
                     ):
                         widget.setDecimals(info.json_schema_extra["decimals"])
-                widget.setValue(getattr(obj, name))
-                widget.valueChanged.connect(functools.partial(self._value_changed, obj, name))
-            elif info.annotation == Time:
-                widget = QtWidgets.QDateTimeEdit()
-                widget.setDisplayFormat("yyyy/MM/dd HH:mm:ss")
-                widget.setCalendarPopup(True)
-                widget.setDateTime(getattr(obj, name).to_datetime())
-                widget.dateTimeChanged.connect(functools.partial(self._value_changed, obj, name))
-            elif get_origin(info.annotation) is Literal:
-                widget = QtWidgets.QComboBox()
-                widget.addItems([str(a) for a in get_args(info.annotation)])
-                widget.setCurrentText(str(getattr(obj, name)))
-                widget.currentTextChanged.connect(functools.partial(self._value_changed, obj, name))
-            else:
-                widget = QtWidgets.QLineEdit()
-                widget.setText(getattr(obj, name))
-                widget.textChanged.connect(functools.partial(self._value_changed, obj, name))
-            layout.addRow(name, widget)
+                layout.addRow(name, widget)
 
-    @QtCore.Slot(float)
-    @QtCore.Slot(str)
-    @QtCore.Slot(datetime.datetime)
-    def _value_changed(self, obj, name, value):
-        setattr(obj, name, value)
+    @QtCore.Slot()
+    def _value_changed(self, obj, name, value=None):
+        field_info = obj.model_fields.get(name)
+        if field_info is not None:
+            widget = self._field_widgets.get(name)
+            if widget is not None:
+                extracted = _get_widget_value(widget, field_info.annotation)
+                if extracted is not None:
+                    value = extracted
+        if value is not None:
+            setattr(obj, name, value)
         self.task_changed.emit()
