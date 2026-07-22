@@ -22,7 +22,7 @@ pyobs-task-editor = "pyobs_task_editor.cli:main"
 dev = [
     "mypy>=1.15.0,<2",
     "black>=25.1.0,<26",
-    "pre-commit>=4.2.0,<5",
+    "pre-commit>=4.6.1,<5",
     "flake8>=7.3.0",
     "pyside6-stubs>=6.7.3.0",
 ]
