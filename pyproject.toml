@@ -20,7 +20,7 @@ pyobs-task-editor = "pyobs_task_editor.cli:main"
 
 [dependency-groups]
 dev = [
-    "mypy>=1.15.0,<2",
+    "mypy>=2.3.0,<3",
     "black>=25.1.0,<26",
     "pre-commit>=4.6.1,<5",
     "flake8>=7.3.0",
